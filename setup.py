@@ -20,7 +20,7 @@ vsc-filesystems base distribution setup.py
 @author: Andy Georges (Ghent University)
 """
 import vsc.install.shared_setup as shared_setup
-from vsc.install.shared_setup import ag, sdw
+from vsc.install.shared_setup import ag
 
 
 def remove_bdist_rpm_source_file():
@@ -37,7 +37,7 @@ shared_setup.SHARED_TARGET.update({
 
 PACKAGE = {
     'name': 'vsc-filesystems-quota',
-    'version': '0.2',
+    'version': '0.2.1',
     'author': [ag],
     'maintainer': [ag],
     'namespace_packages': ['vsc'],
