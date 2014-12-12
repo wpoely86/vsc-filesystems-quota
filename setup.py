@@ -50,7 +50,7 @@ PACKAGE = {
     'install_requires': [
         'vsc-base >= 1.6.6',
         'vsc-config >= 1.10',
-        'vsc-filesystems >= 0.27.1',
+        'vsc-filesystems >= 0.28',
         'vsc-utils >= 1.4.6',
     ],
 }
