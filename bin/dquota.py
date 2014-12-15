@@ -393,7 +393,7 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
 def notify(storage_name, item, quota, dry_run=False):
     """Send out the notification"""
     mail = VscMail(mail_host="smtp.ugent.be")
-    if type(item) in ("tuple",):
+    if isintance(item, tuple):
        item = item[0]
     if item.startswith("gvo"):  # VOs
         vo = VscVo(item)
