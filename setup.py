@@ -14,7 +14,7 @@
 #
 # #
 """
-vsc-filesystems base distribution setup.py
+vsc-filesystems-quota base distribution setup.py
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Andy Georges (Ghent University)
