@@ -40,7 +40,7 @@ PACKAGE = {
     'version': '0.2.2',
     'author': [ag],
     'maintainer': [ag],
-    'namespace_packages': ['vsc'],
+    'namespace_packages': [],
     'scripts': ['bin/quota_log.py',
                 'bin/inode_log.py',
                 'bin/dquota.py',
