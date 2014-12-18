@@ -25,7 +25,7 @@ from vsc.install.shared_setup import ag
 
 def remove_bdist_rpm_source_file():
     """List of files to remove from the (source) RPM."""
-    return ['lib/vsc/__init__.py']
+    return []
 
 
 shared_setup.remove_extra_bdist_rpm_files = remove_bdist_rpm_source_file
