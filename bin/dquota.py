@@ -223,7 +223,7 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
     filesets = gpfs.list_filesets()
     exceeding_filesets = []
 
-    log_vo_quota_to_django(storage_name, quota_map, client, dry_run)
+    push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
 
     logger.info("filesets = %s" % (filesets))
 
@@ -258,7 +258,7 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
     return exceeding_filesets
 
 
-def log_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run=False):
+def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run=False):
     """
     Upload the quota information to the django database, so it can be displayed for the users in the web application.
     """
@@ -293,30 +293,35 @@ def log_user_quota_to_django(user_map, storage_name, path_template, quota_map, c
             count += 1
 
             if count > 100:
-                log_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
+                push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
                 count = 0
                 payload = []
 
     if payload:
-        log_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
+        push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
 
 
-def log_vo_quota_to_django(storage_name, quota_map, client, payload, dry_run=False):
+def push_vo_quota_to_django(storage_name, quota_map, client, payload, dry_run=False):
     pass
 
 
-def log_quota_to_django(storage_name, kind, client, payload, dry_run=False):
+def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
 
     if dry_run:
         logger.info("Would push payload to account web app: %s" % (payload,))
     else:
         try:
+            cl = client.usage.storage[storage_name]
             if kind == QUOTA_USER_KIND:
                 logger.debug("Pushing user payload to account web app: %s", payload)
-                (code, result) = client.usage.storage[storage_name].user.size.put(body=payload)
+                cl = cl.user
             elif kind == QUOTA_VO_KIND:
                 logger.debug("Pushing vo payload to account web app: %s", payload)
-                (code, result) = client.usage.storage[storage_name].vo.size.put(body=payload)
+                cl = cl.vo
+            else:
+                logger.error("Unknown quota kind, not pushing any quota to the account page")
+                return
+            cl.size.put(body=payload)  # if all is well, there's nothing returned except (200, empty string)
         except Exception:
             logger.raiseException("Could not store quota info in account web app")
 
@@ -341,7 +346,7 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     gpfs_mount_point = storage[storage_name].gpfs_mount_point
     path_template = storage.path_templates[storage_name]
 
-    log_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
+    push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
 
     for (user_id, quota) in quota_map.items():
 
