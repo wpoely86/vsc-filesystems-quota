@@ -29,6 +29,7 @@ import urllib2
 
 from string import Template
 
+from vsc.accountpage.client import AccountpageClient
 from vsc.administration.user import VscUser
 from vsc.administration.vo import VscVo
 from vsc.config.base import VscStorage
@@ -49,6 +50,9 @@ NAGIOS_CHECK_INTERVAL_THRESHOLD = 60 * 60 # one hour
 GPFS_GRACE_REGEX = re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
 
 GPFS_NOGRACE_REGEX = re.compile(r"none", re.I)
+
+QUOTA_USER_KIND = 'user'
+QUOTA_VO_KIND = 'vo'
 
 # log setup
 logger = fancylogger.getLogger(__name__)
@@ -212,14 +216,14 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp):
     return entity
 
 
-def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, opener, url, access_token, dry_run=False):
+def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
     """Store the quota information in the filesets.
     """
 
     filesets = gpfs.list_filesets()
     exceeding_filesets = []
 
-    log_vo_quota_to_django(storage_name, quota_map, opener, url, access_token, dry_run)
+    push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
 
     logger.info("filesets = %s" % (filesets))
 
@@ -254,7 +258,7 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, op
     return exceeding_filesets
 
 
-def log_user_quota_to_django(user_map, storage_name, quota_map, opener, url, access_token, dry_run=False):
+def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run=False):
     """
     Upload the quota information to the django database, so it can be displayed for the users in the web application.
     """
@@ -262,11 +266,16 @@ def log_user_quota_to_django(user_map, storage_name, quota_map, opener, url, acc
     payload = []
     count = 0
 
+    logger.info("Logging user quota to account page")
+    logger.debug("Considering the following quota items for pushing: %s", quota_map)
+
     for (user_id, quota) in quota_map.items():
 
         user_name = user_map.get(int(user_id), None)
         if not user_name or not user_name.startswith('vsc4'):
             continue
+
+        sanitize_quota_information(path_template['user'][0], quota)
 
         for (fileset, quota_) in quota.quota_map.items():
 
@@ -284,27 +293,35 @@ def log_user_quota_to_django(user_map, storage_name, quota_map, opener, url, acc
             count += 1
 
             if count > 100:
-                log_quota_to_django(storage_name, "user", opener, url, payload, access_token, dry_run)
+                push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
                 count = 0
                 payload = []
 
-    if count:
-        log_quota_to_django(storage_name, "user", opener, url, payload, access_token, dry_run)
+    if payload:
+        push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
 
 
-def log_vo_quota_to_django(storage_name, quota_map, opener, url, payload, access_token, dry_run=False):
+def push_vo_quota_to_django(storage_name, quota_map, client, payload, dry_run=False):
     pass
 
-def log_quota_to_django(storage_name, kind, opener, url, payload, access_token, dry_run=False):
 
-    payload = jsonpickle.encode(payload)
+def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
 
     if dry_run:
         logger.info("Would push payload to account web app: %s" % (payload,))
     else:
         try:
-            path = "%s/api/usage/storage/%s/%s/size/" % (url, storage_name, kind)
-            # result = make_api_request(opener, path, "PUT", payload, access_token)
+            cl = client.usage.storage[storage_name]
+            if kind == QUOTA_USER_KIND:
+                logger.debug("Pushing user payload to account web app: %s", payload)
+                cl = cl.user
+            elif kind == QUOTA_VO_KIND:
+                logger.debug("Pushing vo payload to account web app: %s", payload)
+                cl = cl.vo
+            else:
+                logger.error("Unknown quota kind, not pushing any quota to the account page")
+                return
+            cl.size.put(body=payload)  # if all is well, there's nothing returned except (200, empty string)
         except Exception:
             logger.raiseException("Could not store quota info in account web app")
 
@@ -321,7 +338,7 @@ def sanitize_quota_information(fileset_name, quota):
             quota.quota_map.pop(fileset)
 
 
-def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, opener, url, access_token, dry_run=False):
+def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
     """Store the information in the user directories.
     """
     exceeding_users = []
@@ -329,7 +346,7 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     gpfs_mount_point = storage[storage_name].gpfs_mount_point
     path_template = storage.path_templates[storage_name]
 
-    # log_user_quota_to_django(user_map, storage_name, quota_map, opener, url, access_token, dry_run)
+    push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
 
     for (user_id, quota) in quota_map.items():
 
@@ -509,8 +526,7 @@ def main():
     opts = ExtendedSimpleOption(options)
 
     try:
-        opener = urllib2.build_opener(urllib2.HTTPHandler)
-        access_token = opts.options.access_token
+        client = AccountpageClient(token=opts.options.access_token)
 
         user_id_map = map_uids_to_names()  # is this really necessary?
         LdapQuery(VscConfiguration())
@@ -536,7 +552,7 @@ def main():
             filesystem = storage[storage_name].filesystem
 
             if filesystem not in filesystems:
-                logger.error("Non-existant filesystem %s" % (filesystem))
+                logger.error("Non-existent filesystem %s" % (filesystem))
                 continue
 
             if filesystem not in quota.keys():
@@ -550,9 +566,7 @@ def main():
                                                                      storage_name,
                                                                      filesystem,
                                                                      quota_storage_map['FILESET'],
-                                                                     opener,
-                                                                     opts.options.account_page_url,
-                                                                     access_token,
+                                                                     client,
                                                                      opts.options.dry_run)
             exceeding_users[storage_name] = process_user_quota(storage,
                                                                gpfs,
@@ -560,9 +574,7 @@ def main():
                                                                filesystem,
                                                                quota_storage_map['USR'],
                                                                user_id_map,
-                                                               opener,
-                                                               opts.options.account_page_url,
-                                                               access_token,
+                                                               client,
                                                                opts.options.dry_run)
 
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
