@@ -55,27 +55,7 @@ fancylogger.setLogLevelInfo()
 INODE_STORE_LOG_CRITICAL = 1
 
 
-from vsc.filesystem.quota.process import InodeCritical
-
-
-
-def process_inodes_information(filesets, quota):
-    """
-    Determines which filesets have reached a critical inode limit.
-
-    @returns: dict with (filesetname, InodeCritical) key-value pairs
-    """
-    critical_filesets = dict()
-
-    for (fs_key, fs_info) in filesets.items():
-        allocated = int(fs_info['allocInodes'])
-        maxinodes = int(fs_info['maxInodes'])
-        used = int(quota[fs_key][0].filesUsage)
-
-        if used > 0.9 * maxinodes:
-            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated, maxinodes=maxinodes)
-
-    return critical_filesets
+from vsc.filesystem.quota.process import InodeCritical, process_inodes_information
 
 
 def mail_admins(critical_filesets, dry_run):
@@ -149,7 +129,7 @@ def main():
                 stats["%s_inodes_log" % (filesystem,)] = 0
                 logger.info("Stored inodes information for FS %s" % (filesystem))
 
-                cfs = process_inodes_information(filesets[filesystem], quota[filesystem]['FILESET'])
+                cfs = process_inodes_information(filesets[filesystem], quota[filesystem]['FILESET'], threshold=0.9)
                 logger.info("Processed inodes information for filesystem %s" % (filesystem,))
                 if cfs:
                     critical_filesets[filesystem] = cfs
