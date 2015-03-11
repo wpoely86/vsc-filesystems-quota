@@ -39,10 +39,10 @@ fancylogger.setLogLevelInfo()
 INODE_STORE_LOG_CRITICAL = 1
 
 
-InodeCritical = namedtuple('InodeCritical', 'allocated, maxinodes')
+InodeCritical = namedtuple('InodeCritical', 'used, allocated, maxinodes')
 
 
-def process_inodes_information(filesets):
+def process_inodes_information(filesets, quota):
     """
     Determines which filesets have reached a critical inode limit.
 
@@ -50,12 +50,13 @@ def process_inodes_information(filesets):
     """
     critical_filesets = dict()
 
-    for fs_info in filesets.values():
+    for (fs_key, fs_info) in filesets.items():
         allocated = int(fs_info['allocInodes'])
         maxinodes = int(fs_info['maxInodes'])
+        used = int(quota[fs_key][0].filesUsage)
 
-        if allocated > 0.9 * maxinodes:
-            critical_filesets[fs_info['filesetName']] = InodeCritical(allocated=allocated, maxinodes=maxinodes)
+        if used > 0.9 * maxinodes:
+            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated, maxinodes=maxinodes)
 
     return critical_filesets
 
@@ -77,11 +78,12 @@ Your friendly inode-watching script
     fileset_info = []
     for (fs_name, fs_info) in critical_filesets.items():
         for (fileset_name, inode_info) in fs_info.items():
-            fileset_info.append("%s - %s: used %d (%d%%) of %d" % (fs_name,
+            fileset_info.append("%s - %s: used %d (%d%%) of max %s [allocated: %d]" % (fs_name,
                                                                  fileset_name,
-                                                                 inode_info.allocated,
-                                                                 int(inode_info.allocated * 100 / inode_info.maxinodes),
-                                                                 inode_info.maxinodes))
+                                                                 inode_info.used,
+                                                                 int(inode_info.used * 100 / inode_info.maxinodes),
+                                                                 inode_info.maxinodes,
+                                                                 inode_info.allocated))
 
     message = message % ({'fileset_info': "\n".join(fileset_info)})
 
@@ -112,6 +114,7 @@ def main():
     try:
         gpfs = GpfsOperations()
         filesets = gpfs.list_filesets()
+        quota = gpfs.list_quota()
 
         if not os.path.exists(opts.options.location):
             os.makedirs(opts.options.location, 0755)
@@ -129,7 +132,7 @@ def main():
                 stats["%s_inodes_log" % (filesystem,)] = 0
                 logger.info("Stored inodes information for FS %s" % (filesystem))
 
-                cfs = process_inodes_information(filesets[filesystem])
+                cfs = process_inodes_information(filesets[filesystem], quota[filesystem]['FILESET'])
                 logger.info("Processed inodes information for filesystem %s" % (filesystem,))
                 if cfs:
                     critical_filesets[filesystem] = cfs
