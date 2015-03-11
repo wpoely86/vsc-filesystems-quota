@@ -78,7 +78,7 @@ Your friendly inode-watching script
     fileset_info = []
     for (fs_name, fs_info) in critical_filesets.items():
         for (fileset_name, inode_info) in fs_info.items():
-            fileset_info.append("%s - %s: used %d (%d%%) of max %s [allocated: %d]" % (fs_name,
+            fileset_info.append("%s - %s: used %d (%d%%) of max %d [allocated: %d]" % (fs_name,
                                                                  fileset_name,
                                                                  inode_info.used,
                                                                  int(inode_info.used * 100 / inode_info.maxinodes),
