@@ -37,7 +37,7 @@ shared_setup.SHARED_TARGET.update({
 
 PACKAGE = {
     'name': 'vsc-filesystems-quota',
-    'version': '0.5',
+    'version': '0.5.1',
     'author': [ag],
     'maintainer': [ag],
     'namespace_packages': [],
