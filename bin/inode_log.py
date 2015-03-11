@@ -37,7 +37,6 @@ import socket
 import sys
 import time
 
-from collections import namedtuple
 
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.utils import fancylogger
@@ -56,7 +55,8 @@ fancylogger.setLogLevelInfo()
 INODE_STORE_LOG_CRITICAL = 1
 
 
-InodeCritical = namedtuple('InodeCritical', 'used, allocated, maxinodes')
+from vsc.filesystem.quota.process import InodeCritical
+
 
 
 def process_inodes_information(filesets, quota):
