@@ -11,7 +11,7 @@ Tests for the inode_log.py script in vsc-filesystem-quota.
 @author: Andy Georges
 """
 
-from unittest import TestCase, TestLoader
+from unittest import TestCase, TestLoader, TestSuite
 
 from vsc.filesystem.gpfs import GpfsQuota
 from vsc.filesystem.quota.process import InodeCritical, process_inodes_information
@@ -88,4 +88,6 @@ class TestProcessInodesInformation(TestCase):
 
 def suite():
     """ return all the tests"""
-    return TestLoader().loadTestsFromTestCase(TestMailAdmin)
+    s = TestSuite()
+    s.addTests(TestLoader().loadTestsFromTestCase(TestMailAdmin))
+    s.addTests(TestLoader().loadTestsFromTestCase(TestProcessInodesInformation))
