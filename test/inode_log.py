@@ -27,10 +27,19 @@ class TestMailAdmin(TestCase):
 
 
 class TestProcessInodesInformation(TestCase):
-
+    """
+    Test the function that processes the information regarding inode usage to determine
+    for which filesets the usage has become critical, i.e.m exceeded the given threshold.
+    """
 
     def setUp(self):
+        """
+        Add example cases.
+        """
+
+        # names reflect the number of used inodes (max is set by default at 100, so this effectively is a percentage.
         self.names = (10, 95)
+
         self.filesets = {
             self.names[0]: {
                 'allocInodes': 90,
@@ -70,18 +79,17 @@ class TestProcessInodesInformation(TestCase):
 
     def testThreshold(self):
         """
-        Verify that only entries that have a percetage above the threshold are marked as critical.
+        Verify that only entries that have a percentage above the threshold are marked as critical.
         """
         critical = process_inodes_information(self.filesets, self.usage, threshold=0.9)
 
         self.assertDictEqual(
             critical,
-            { "%s" % self.names[1]: InodeCritical(used=self.usage[self.names[1]][0].filesUsage,
-                                           allocated=self.filesets[self.names[1]]['allocInodes'],
-                                           maxinodes=self.filesets[self.names[1]]['maxInodes']),
+            { str(self.names[1]): InodeCritical(used=self.usage[self.names[1]][0].filesUsage,
+                                                allocated=self.filesets[self.names[1]]['allocInodes'],
+                                                maxinodes=self.filesets[self.names[1]]['maxInodes']),
             },
-            "dict with critical filesets is not correct"
-
+            "computed dict with critical filesets is the expected dict"
         )
 
 
