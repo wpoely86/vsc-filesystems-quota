@@ -119,6 +119,9 @@ accessible faster than both $$VSC_HOME and $$VSC_DATA.
 At this point on $time, the VO  usage is the following:
 $quota_info
 
+You can check your quota by running the show_quota command on the login nodes or
+visit the VSC account page at https://account.vscentrum.be/. Note that the information
+there is cached and may not show the most recent information.
 
 Kind regards,
 The UGent HPC team
