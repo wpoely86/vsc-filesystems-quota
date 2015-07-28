@@ -19,13 +19,11 @@ Script to check for quota transgressions and notify the offending users.
 
 @author Andy Georges
 """
-import jsonpickle
 import os
 import pwd
 import re
 import sys
 import time
-import urllib2
 
 from string import Template
 
@@ -41,11 +39,10 @@ from vsc.utils import fancylogger
 from vsc.utils.cache import FileCache
 from vsc.utils.mail import VscMail
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
-from vsc.utils.rest_oauth import make_api_request
 from vsc.utils.script_tools import ExtendedSimpleOption
 
 # Constants
-NAGIOS_CHECK_INTERVAL_THRESHOLD = 60 * 60 # one hour
+NAGIOS_CHECK_INTERVAL_THRESHOLD = 60 * 60  # one hour
 
 GPFS_GRACE_REGEX = re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
 
@@ -128,7 +125,7 @@ The UGent HPC team
 """)
 
 
-def get_mmrepquota_maps(quota_map, storage, filesystem, filesets):
+def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, replication_factor=1):
     """Obtain the quota information.
 
     This function uses vsc.filesystem.gpfs.GpfsOperations to obtain
@@ -139,6 +136,8 @@ def get_mmrepquota_maps(quota_map, storage, filesystem, filesets):
     quota settings across different filesets are processed correctly.
 
     Returns { "USR": user dictionary, "FILESET": fileset dictionary}.
+
+    @type replication_factor: int, describing the number of copies the FS holds for each file
     """
     user_map = {}
     fs_map = {}
@@ -149,26 +148,32 @@ def get_mmrepquota_maps(quota_map, storage, filesystem, filesets):
     # Iterate over a list of named tuples -- GpfsQuota
     for (user, gpfs_quota) in quota_map['USR'].items():
         user_quota = user_map.get(user, QuotaUser(storage, filesystem, user))
-        user_map[user] = _update_quota_entity(filesets,
-                                              user_quota,
-                                              filesystem,
-                                              gpfs_quota,
-                                              timestamp)
+        user_map[user] = _update_quota_entity(
+            filesets,
+            user_quota,
+            filesystem,
+            gpfs_quota,
+            timestamp,
+            replication_factor
+        )
 
     logger.info("ordering FILESET quota for storage %s" % (storage))
     # Iterate over a list of named tuples -- GpfsQuota
     for (fileset, gpfs_quota) in quota_map['FILESET'].items():
         fileset_quota = fs_map.get(fileset, QuotaFileset(storage, filesystem, fileset))
-        fs_map[fileset] = _update_quota_entity(filesets,
-                                               fileset_quota,
-                                               filesystem,
-                                               gpfs_quota,
-                                               timestamp)
+        fs_map[fileset] = _update_quota_entity(
+            filesets,
+            fileset_quota,
+            filesystem,
+            gpfs_quota,
+            timestamp,
+            replication_factor
+        )
 
     return {"USR": user_map, "FILESET": fs_map}
 
 
-def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp):
+def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, replication_factor=1):
     """
     Update the quota information for an entity (user or fileset).
 
@@ -177,6 +182,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp):
     @type filesystem: string
     @type gpfs_quota: list of GpfsQuota namedtuple instances
     @type timestamp: a timestamp, duh. an integer
+    @type replication_factor: int, describing the number of copies the FS holds for each file
     """
 
     for quota in gpfs_quotas:
@@ -198,7 +204,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp):
                 expired = (True, 0)
             else:
                 logger.raiseException("Unprocessed grace groupdict %s (from string %s)." %
-                                        (grace, quota.blockGrace))
+                                      (grace, quota.blockGrace))
         else:
             logger.raiseException("Unknown grace string %s." % quota.blockGrace)
 
@@ -209,9 +215,9 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp):
         logger.debug("The fileset name is %s (filesystem %s); blockgrace %s to expired %s" %
                      (fileset_name, filesystem, quota.blockGrace, expired))
         entity.update(fileset_name,
-                      int(quota.blockUsage),
-                      int(quota.blockQuota),
-                      int(quota.blockLimit),
+                      int(quota.blockUsage) // replication_factor,
+                      int(quota.blockQuota) // replication_factor,
+                      int(quota.blockLimit) // replication_factor,
                       int(quota.blockInDoubt),
                       expired,
                       timestamp)
@@ -230,7 +236,6 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
 
     logger.info("filesets = %s" % (filesets))
 
-    payload = []
     for (fileset, quota) in quota_map.items():
         fileset_name = filesets[filesystem][fileset]['filesetName']
         logger.debug("Fileset %s quota: %s" % (fileset_name, quota))
@@ -288,7 +293,7 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
                 "used": quota_.used,
                 "soft": quota_.soft,
                 "hard": quota_.hard,
-                "doubt" : quota_.doubt,
+                "doubt": quota_.doubt,
                 "expired": quota_.expired[0],
                 "remaining": quota_.expired[1] or 0,  # seconds
             }
@@ -388,7 +393,8 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
             sanitize_quota_information(path_template['user'][0], quota)
 
             if dry_run:
-                logger.info("Dry run: would update cache for %s at %s with %s" % (storage_name, new_path, "%s" % (quota,)))
+                logger.info("Dry run: would update cache for %s at %s with %s" %
+                            (storage_name, new_path, "%s" % (quota,)))
                 logger.info("Dry run: would chmod 640 %s" % (filename,))
                 logger.info("Dry run: would chown %s to %s %s" % (filename, path_stat.st_uid, path_stat.st_gid))
             else:
@@ -414,7 +420,7 @@ def notify(storage_name, item, quota, dry_run=False):
     """Send out the notification"""
     mail = VscMail(mail_host="smtp.ugent.be")
     if isinstance(item, tuple):
-       item = item[0]
+        item = item[0]
     if item.startswith("gvo"):  # VOs
         vo = VscVo(item)
         for user in [VscUser(m) for m in vo.moderator]:
@@ -478,7 +484,10 @@ def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, d
           to avoid sending outdated mails repeatedly.
     """
 
-    cache_path = os.path.join(gpfs.list_filesystems()[filesystem]['defaultMountPoint'], ".quota_%s_cache.json.gz" % (target))
+    cache_path = os.path.join(
+        gpfs.list_filesystems()[filesystem]['defaultMountPoint'],
+        ".quota_%s_cache.json.gz" % (target)
+    )
     cache = FileCache(cache_path, True)  # we retain the old data
 
     logger.info("Processing %d exceeding items" % (len(exceeding_items)))
@@ -553,6 +562,7 @@ def main():
 
             logger.info("Processing quota for storage_name %s" % (storage_name))
             filesystem = storage[storage_name].filesystem
+            replication_factor = storage[storage_name].data_replication_factor
 
             if filesystem not in filesystems:
                 logger.error("Non-existent filesystem %s" % (filesystem))
@@ -562,7 +572,13 @@ def main():
                 logger.error("No quota defined for storage_name %s [%s]" % (storage_name, filesystem))
                 continue
 
-            quota_storage_map = get_mmrepquota_maps(quota[filesystem], storage_name, filesystem, filesets)
+            quota_storage_map = get_mmrepquota_maps(
+                quota[filesystem],
+                storage_name,
+                filesystem,
+                filesets,
+                replication_factor
+            )
 
             exceeding_filesets[storage_name] = process_fileset_quota(storage,
                                                                      gpfs,
@@ -583,8 +599,8 @@ def main():
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
             if exceeding_filesets[storage_name]:
                 stats["%s_fileset" % (storage_name,)] = 1
-                logger.warning("storage_name %s found %d filesets that are exceeding their quota" % (storage_name,
-                                                                                                len(exceeding_filesets)))
+                logger.warning("storage_name %s found %d filesets that are exceeding their quota" %
+                               (storage_name, len(exceeding_filesets)))
                 for (e_fileset, e_quota) in exceeding_filesets[storage_name]:
                     logger.warning("%s has quota %s" % (e_fileset, str(e_quota)))
             else:
