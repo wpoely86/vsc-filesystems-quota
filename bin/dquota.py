@@ -218,7 +218,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
                       int(quota.blockUsage) // replication_factor,
                       int(quota.blockQuota) // replication_factor,
                       int(quota.blockLimit) // replication_factor,
-                      int(quota.blockInDoubt),
+                      int(quota.blockInDoubt) // replication_factor,
                       expired,
                       timestamp)
 
