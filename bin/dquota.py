@@ -393,10 +393,10 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
             sanitize_quota_information(path_template['user'][0], quota)
 
             if dry_run:
-                logger.info("Dry run: would update cache for %s at %s with %s" %
-                            (storage_name, new_path, "%s" % (quota,)))
+                logger.info("Dry run: would update cache for %s at %s with %s",
+                            storage_name, new_path, "%s" % (quota,))
                 logger.info("Dry run: would chmod 640 %s" % (filename,))
-                logger.info("Dry run: would chown %s to %s %s" % (filename, path_stat.st_uid, path_stat.st_gid))
+                logger.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
             else:
                 cache = FileCache(filename, False)
                 cache.update(key="quota", data=quota, threshold=0)
@@ -599,8 +599,8 @@ def main():
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
             if exceeding_filesets[storage_name]:
                 stats["%s_fileset" % (storage_name,)] = 1
-                logger.warning("storage_name %s found %d filesets that are exceeding their quota" %
-                               (storage_name, len(exceeding_filesets)))
+                logger.warning("storage_name %s found %d filesets that are exceeding their quota",
+                               storage_name, len(exceeding_filesets))
                 for (e_fileset, e_quota) in exceeding_filesets[storage_name]:
                     logger.warning("%s has quota %s" % (e_fileset, str(e_quota)))
             else:
