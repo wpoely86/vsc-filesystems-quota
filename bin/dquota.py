@@ -28,8 +28,8 @@ import time
 from string import Template
 
 from vsc.accountpage.client import AccountpageClient
-from vsc.administration.user import VscUser
-from vsc.administration.vo import VscVo
+from vsc.administration.user import VscTier2AccountpageUser
+from vsc.administration.vo import VscTier2AccountpageVo
 from vsc.config.base import VscStorage
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
@@ -361,7 +361,7 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
         user_name = user_map.get(int(user_id), None)
 
         if user_name and user_name.startswith('vsc4'):
-            user = VscUser(user_name)
+            user = VscTier2AccountpageUser(user_name)
             logger.debug("Checking quota for user %s with ID %s" % (user_name, user_id))
             logger.debug("User %s quota: %s" % (user, quota))
 
@@ -422,8 +422,8 @@ def notify(storage_name, item, quota, dry_run=False):
     if isinstance(item, tuple):
         item = item[0]
     if item.startswith("gvo"):  # VOs
-        vo = VscVo(item)
-        for user in [VscUser(m) for m in vo.moderator]:
+        vo = VscTier2AccountpageVo(item)
+        for user in [VscTier2AccountpageUser(m) for m in vo.moderator]:
             message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.gecos,
                                                                            vo_name=item,
                                                                            storage_name=storage_name,
@@ -443,7 +443,7 @@ def notify(storage_name, item, quota, dry_run=False):
     elif item.startswith("gpr"):  # projects
         pass
     elif item.startswith("vsc"):  # users
-        user = VscUser(item)
+        user = VscTier2AccountpageUser(item)
 
         exceeding_filesets = [fs for (fs, q) in quota.quota_map.items() if q.expired[0]]
         storage_names = []
