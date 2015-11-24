@@ -22,31 +22,10 @@ vsc-filesystems-quota base distribution setup.py
 import vsc.install.shared_setup as shared_setup
 from vsc.install.shared_setup import ag
 
-
-def remove_bdist_rpm_source_file():
-    """List of files to remove from the (source) RPM."""
-    return []
-
-
-shared_setup.remove_extra_bdist_rpm_files = remove_bdist_rpm_source_file
-shared_setup.SHARED_TARGET.update({
-    'url': 'https://github.ugent.be/hpcugent/vsc-filesystems-quota',
-    'download_url': 'https://github.ugent.be/hpcugent/vsc-filesystems-quota'
-})
-
-
 PACKAGE = {
-    'name': 'vsc-filesystems-quota',
-    'version': '0.5.3',
+    'version': '0.6',
     'author': [ag],
     'maintainer': [ag],
-    'namespace_packages': [],
-    'scripts': ['bin/quota_log.py',
-                'bin/inode_log.py',
-                'bin/dquota.py',
-                'bin/my_show_quota.sh',
-                'bin/show_quota.py',
-                ],
     'install_requires': [
         'vsc-accountpage-clients',
         'vsc-base >= 1.6.6',
