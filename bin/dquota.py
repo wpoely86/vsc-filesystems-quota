@@ -41,9 +41,9 @@ import sys
 from vsc.accountpage.client import AccountpageClient
 from vsc.config.base import VscStorage
 from vsc.filesystem.gpfs import GpfsOperations
-from vsc.filesystems.quota.tools import get_mmrepquota_maps, map_uids_to_names
-from vsc.filesystems.quota.tools import process_user_quota, process_fileset_quota
-from vsc.filesystems.quota.tools import notify_exceeding_users, notify_exceeding_filesets
+from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
+from vsc.filesystem.quota.tools import process_user_quota, process_fileset_quota
+from vsc.filesystem.quota.tools import notify_exceeding_users, notify_exceeding_filesets
 from vsc.ldap.configuration import VscConfiguration
 from vsc.ldap.utils import LdapQuery
 from vsc.utils import fancylogger
@@ -148,6 +148,7 @@ def main():
                                       storage=storage_name,
                                       filesystem=filesystem,
                                       exceeding_items=exceeding_filesets[storage_name],
+                                      client=client,
                                       dry_run=opts.options.dry_run)
 
             stats["%s_users_warning" % (storage_name,)] = QUOTA_USERS_WARNING
@@ -166,6 +167,7 @@ def main():
                                    storage=storage_name,
                                    filesystem=filesystem,
                                    exceeding_items=exceeding_users[storage_name],
+                                   client=client,
                                    dry_run=opts.options.dry_run)
     except Exception, err:
         logger.exception("critical exception caught: %s" % (err))

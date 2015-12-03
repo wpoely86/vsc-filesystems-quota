@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Copyright 2015-2015 Ghent University
 #
@@ -30,6 +29,7 @@ Helper functions for all things quota related.
 @author: Andy Georges (Ghent University)
 """
 
+import logging
 import os
 import pwd
 import re
@@ -412,15 +412,15 @@ def sanitize_quota_information(fileset_name, quota):
             quota.quota_map.pop(fileset)
 
 
-def notify(storage_name, item, quota, dry_run=False):
+def notify(storage_name, item, quota, client, dry_run=False):
     """Send out the notification"""
     mail = VscMail(mail_host="smtp.ugent.be")
     if isinstance(item, tuple):
         item = item[0]
     if item.startswith("gvo"):  # VOs
-        vo = VscTier2AccountpageVo(item)
+        vo = VscTier2AccountpageVo(item, rest_client=client)
         for user in [VscTier2AccountpageUser(m) for m in vo.moderator]:
-            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.gecos,
+            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                            vo_name=item,
                                                                            storage_name=storage_name,
                                                                            quota_info="%s" % (quota,),
@@ -428,18 +428,19 @@ def notify(storage_name, item, quota, dry_run=False):
             if dry_run:
                 logger.info("Dry-run, would send the following message: %s" % (message,))
             else:
-                mail.sendTextMail(mail_to=user.mail,
+                mail.sendTextMail(mail_to=user.account.email,
                                   mail_from="hpc@ugent.be",
                                   reply_to="hpc@ugent.be",
                                   mail_subject="Quota on %s exceeded" % (storage_name,),
                                   message=message)
             logger.info("notification: recipient %s storage %s quota_string %s" %
-                        (user.cn, storage_name, "%s" % (quota,)))
+                        (user.account.vsc_id, storage_name, "%s" % (quota,)))
 
     elif item.startswith("gpr"):  # projects
         pass
     elif item.startswith("vsc"):  # users
-        user = VscTier2AccountpageUser(item)
+        logging.warning("notifying VSC user %s", item)
+        user = VscTier2AccountpageUser(item, rest_client=client)
 
         exceeding_filesets = [fs for (fs, q) in quota.quota_map.items() if q.expired[0]]
         storage_names = []
@@ -449,25 +450,27 @@ def notify(storage_name, item, quota, dry_run=False):
             storage_names.append(storage_name + "_VO")
         storage_names = ", ".join(["$" + sn for sn in storage_names])
 
-        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.gecos,
+        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                     storage_name=storage_names,
                                                                     quota_info="%s" % (quota,),
                                                                     time=time.ctime())
         if dry_run:
             logger.info("Dry-run, would send the following message: %s" % (message,))
         else:
-            mail.sendTextMail(mail_to=user.mail,
+            logging.warning("here")
+            mail.sendTextMail(mail_to=user.account.email,
                               mail_from="hpc@ugent.be",
                               reply_to="hpc@ugent.be",
                               mail_subject="Quota on %s exceeded" % (storage_name,),
                               message=message)
         logger.info("notification: recipient %s storage %s quota_string %s" %
-                    (user.cn, storage_name, "%s" % (quota,)))
+                    (user.account.vsc_id, storage_name, "%s" % (quota,)))
     else:
         logger.error("Should send a mail, but cannot process item %s" % (item,))
 
 
-def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, dry_run=False):
+
+def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, client, dry_run=False):
     """Send out notification to the fileset owners.
 
     - if the fileset belongs to a VO: the VO moderator
@@ -479,25 +482,27 @@ def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, d
         - the excession occurred more than 7 days ago and stayed in the cache. In this case, the cache is updated as
           to avoid sending outdated mails repeatedly.
     """
-
     cache_path = os.path.join(
         gpfs.list_filesystems()[filesystem]['defaultMountPoint'],
         ".quota_%s_cache.json.gz" % (target)
     )
     cache = FileCache(cache_path, True)  # we retain the old data
 
-    logger.info("Processing %d exceeding items" % (len(exceeding_items)))
+    logging.warning("Processing %d exceeding items" % (len(exceeding_items)))
 
+    updated_cache = False
     for (item, quota) in exceeding_items:
         updated = cache.update(item, quota, QUOTA_NOTIFICATION_CACHE_THRESHOLD)
-        logger.info("Storage %s: cache entry for %s was updated: %s" % (storage, item, updated))
+        logging.warning("Storage %s: cache entry for %s was updated: %s" % (storage, item, updated))
         if updated:
             notify(storage, item, quota, dry_run)
+        updated_cache = updated_cache or updated
 
-    if not dry_run:
+    if not dry_run and updated_cache:
         cache.close()
-    else:
-        logger.info("Dry run: not saving the updated cache")
+
+    if dry_run:
+        logging.info("dry-run: not saving any cache")
 
 
 def notify_exceeding_filesets(**kwargs):

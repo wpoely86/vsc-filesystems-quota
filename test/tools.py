@@ -1,0 +1,185 @@
+#!/usr/bin/env python
+#
+# Copyright 2012-2015 Ghent University
+#
+# This file is part of vsc-filesystems-quota,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
+#
+# https://github.ugent.be/hpcugent/vsc-filesystems-quota
+#
+# vsc-filesystems-quota is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Library General Public License as
+# published by the Free Software Foundation, either version 2 of
+# the License, or (at your option) any later version.
+#
+# vsc-filesystems-quota is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public License
+# along with vsc-filesystems-quota. If not, see <http://www.gnu.org/licenses/>.
+#
+"""
+Tests for all helper functions in vsc.filesystems.quota.tools.
+
+@author: Andy Georges (Ghent University)
+"""
+import logging
+import mock
+
+from collections import namedtuple
+
+import vsc.filesystem.quota.tools as tools
+
+from vsc.accountpage.wrappers import mkVscAccount
+from vsc.config.base import VSC_HOME, VSC_DATA
+from vsc.filesystem.quota.entities import QuotaUser
+from vsc.install.testing import TestCase
+
+
+class TestAuxiliary(TestCase):
+    """
+    Stuff that does not belong anywhere else :)
+    """
+
+    @mock.patch('vsc.filesystem.quota.tools.pwd.getpwall')
+    def test_map_uids_to_names(self, mock_getpwall):
+        """
+        Check that the remapping functions properly
+        """
+        uids = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+
+        mock_getpwall.return_value = uids
+        res = tools.map_uids_to_names()
+
+        self.assertEqual(res, {3: 1, 6: 4, 9: 7})
+
+
+class TestNotifications(TestCase):
+    """
+    Tests for notyfin users and VO admins when exceeding quota
+    """
+    @mock.patch('vsc.filesystem.quota.tools.notify_exceeding_items')
+    def test_notify_exceeding_users(self, mock_notify):
+        """
+        test the correctness of argument passing
+        """
+
+        kwargs = {
+            'arg1': 'arg1',
+            'arg2': 'arg2',
+        }
+        tools.notify_exceeding_users(**kwargs)
+        kwargs['target'] = 'users'
+        mock_notify.assert_called_with(**kwargs)
+
+    @mock.patch('vsc.filesystem.quota.tools.notify_exceeding_items')
+    def test_notify_exceeding_filesets(self, mock_notify):
+        """
+        test the correctness of argument passing
+        """
+
+        kwargs = {
+            'arg1': 'arg1',
+            'arg2': 'arg2',
+        }
+        tools.notify_exceeding_filesets(**kwargs)
+        kwargs['target'] = 'filesets'
+        mock_notify.assert_called_with(**kwargs)
+
+    @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
+    @mock.patch('vsc.filesystem.quota.tools.notify')
+    @mock.patch('vsc.accountpage.client.AccountpageClient', autospec=True)
+    def test_notify_exceeding_items_without_cache_updates(self, mock_client, mock_notify, mock_filecache):
+
+        filesystem = 'vulpixhome'
+        gpfs = mock.MagicMock()
+        gpfs.list_filesystems.return_value = {filesystem: {'defaultMountPoint': '/here/we/are'}}
+
+        mock_filecache.return_value = mock.MagicMock()
+        mock_filecache_instance = mock_filecache.return_value
+        mock_filecache_instance.update.return_value = False
+
+        storage = VSC_HOME
+        exceeding_items = [('item1', 123)]
+        target = 'users'
+
+        tools.notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, mock_client)
+
+        mock_filecache_instance.update.assert_called_with('item1', 123, tools.QUOTA_NOTIFICATION_CACHE_THRESHOLD)
+        mock_filecache_instance.close.assert_not_called()
+
+    @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
+    @mock.patch('vsc.filesystem.quota.tools.notify')
+    @mock.patch('vsc.accountpage.client.AccountpageClient', autospec=True)
+    def test_notify_exceeding_items_with_cache_updates(self, mock_client, mock_notify, mock_filecache):
+
+        filesystem = 'vulpixhome'
+        gpfs = mock.MagicMock()
+        gpfs.list_filesystems.return_value = {filesystem: {'defaultMountPoint': '/here/we/are'}}
+
+        mock_filecache.return_value = mock.MagicMock()
+        mock_filecache_instance = mock_filecache.return_value
+        mock_filecache_instance.update.return_value = True
+
+        storage = VSC_HOME
+        exceeding_items = [('item1', 123)]
+        target = 'users'
+
+        tools.notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, mock_client)
+
+        mock_filecache_instance.update.assert_called_with('item1', 123, tools.QUOTA_NOTIFICATION_CACHE_THRESHOLD)
+        mock_filecache_instance.close.assert_called_with()
+        mock_notify.assert_called_with(storage, 'item1', 123, False)
+
+    @mock.patch('vsc.filesystem.quota.tools.VscMail', autospec=True)
+    @mock.patch('vsc.accountpage.client.AccountpageClient', autospec=True)
+    @mock.patch('vsc.filesystem.quota.tools.VscTier2AccountpageUser', autospec=True)
+    def test_notify_user(self, mock_user, mock_client, mock_mail):
+
+        storage_name = VSC_DATA
+        item = 'vsc40075'
+        quota = QuotaUser(storage_name, 'vulpixdata', item)
+        quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+        quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        mock_mail.return_value = mock.MagicMock()
+        mock_mail_instance = mock_mail.return_value
+        mock_mail_instance.sendTextMail.return_value = None
+
+        mock_user.return_value = mock.MagicMock()
+        mock_user_instance = mock_user.return_value
+        mock_user_instance.account = mkVscAccount({
+            'vsc_id': 'vsc40075',
+            'status': 'active',
+            'vsc_id_number': '2540075',
+            'home_directory': '/does/not/exist/home',
+            'data_directory': '/does/not/exist/data',
+            'scratch_directory': '/does/not/exist/scratch',
+            'login_shell': '/bin/bash',
+            'broken': False,
+            'email': 'vsc40075@example.com',
+            'research_field': 'many',
+            'create_timestamp': '200901010000Z',
+            'person': {
+                'gecos': 'Willy Wonka',
+                'institute': 'gent',
+                'institute_login': 'wwonka',
+            },
+        })
+
+        tools.notify(storage_name, item, quota, mock_client)
+
+        mock_mail_instance.sendTextMail.assert_called_with()
+
+
+class TestProcessingUserQuota(TestCase):
+    """
+    Tests for the processing of the user quota
+    """
+    pass
