@@ -419,8 +419,8 @@ def notify(storage_name, item, quota, client, dry_run=False):
         item = item[0]
     if item.startswith("gvo"):  # VOs
         vo = VscTier2AccountpageVo(item, rest_client=client)
-        for user in [VscTier2AccountpageUser(m) for m in vo.moderator]:
-            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
+        for user in [VscTier2AccountpageUser(m) for m in vo.vo.moderators]:
+            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
                                                                            vo_name=item,
                                                                            storage_name=storage_name,
                                                                            quota_info="%s" % (quota,),
@@ -439,7 +439,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
     elif item.startswith("gpr"):  # projects
         pass
     elif item.startswith("vsc"):  # users
-        logging.warning("notifying VSC user %s", item)
+        logging.info("notifying VSC user %s", item)
         user = VscTier2AccountpageUser(item, rest_client=client)
 
         exceeding_filesets = [fs for (fs, q) in quota.quota_map.items() if q.expired[0]]
@@ -450,14 +450,13 @@ def notify(storage_name, item, quota, client, dry_run=False):
             storage_names.append(storage_name + "_VO")
         storage_names = ", ".join(["$" + sn for sn in storage_names])
 
-        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
+        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
                                                                     storage_name=storage_names,
                                                                     quota_info="%s" % (quota,),
                                                                     time=time.ctime())
         if dry_run:
             logger.info("Dry-run, would send the following message: %s" % (message,))
         else:
-            logging.warning("here")
             mail.sendTextMail(mail_to=user.account.email,
                               mail_from="hpc@ugent.be",
                               reply_to="hpc@ugent.be",
@@ -488,12 +487,12 @@ def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, c
     )
     cache = FileCache(cache_path, True)  # we retain the old data
 
-    logging.warning("Processing %d exceeding items" % (len(exceeding_items)))
+    logging.info("Processing %d exceeding items" % (len(exceeding_items)))
 
     updated_cache = False
     for (item, quota) in exceeding_items:
         updated = cache.update(item, quota, QUOTA_NOTIFICATION_CACHE_THRESHOLD)
-        logging.warning("Storage %s: cache entry for %s was updated: %s" % (storage, item, updated))
+        logging.info("Storage %s: cache entry for %s was updated: %s" % (storage, item, updated))
         if updated:
             notify(storage, item, quota, dry_run)
         updated_cache = updated_cache or updated
