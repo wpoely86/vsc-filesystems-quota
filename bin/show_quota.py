@@ -50,9 +50,9 @@ fancylogger.logToScreen(True)
 fancylogger.setLogLevelWarning()
 logger = fancylogger.getLogger('show_quota')
 
-DEFAULT_ALLOWED_TIME_THRESHOLD = 17 * 60
+DEFAULT_ALLOWED_TIME_THRESHOLD = 45 * 60
 
-def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixes):
+def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixes, warning=""):
     """Returns a nice looking string with all the required quota information."""
 
     if quota_information.soft == 0:
@@ -67,7 +67,7 @@ def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixe
     else:
         return None
 
-    s = "%s: used %.3g %s (%d%%) quota %.3g %s (%.3g %s hard limit)" % (
+    s = "%s: used %.3g %s (%d%%) quota %.3g %s (%.3g %s hard limit) %s" % (
         storage_name_s,
         # quota sizes are in 1k blocks
         format_sizes(quota_information.used*1024)[0],
@@ -76,7 +76,8 @@ def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixe
         format_sizes(quota_information.soft*1024)[0],
         format_sizes(quota_information.hard*1024)[1],
         format_sizes(quota_information.hard*1024)[0],
-        format_sizes(quota_information.hard*1024)[1])
+        format_sizes(quota_information.hard*1024)[1],
+        warning)
 
     (exceeds, grace) = quota_information.expired
     if exceeds:
@@ -113,14 +114,13 @@ def print_user_quota(opts, storage, user_name, now):
             print "%s: WARNING: No quota information found" % (storage_name,)
             continue
 
+        warning = ""
         if now - timestamp > opts.options.threshold:
-            print "%s: WARNING: no recent quota information (age of data is %d minutes)" % (storage_name,
-                                                                                            (now-timestamp)/60)
-        else:
-            for (fileset, qi) in quota.quota_map.items():
-                pp = quota_pretty_print(storage_name, fileset, qi, opts.options.fileset_prefixes)
-                if pp:
-                    print pp
+            warning = "(age of data is %d minutes)" % ((now-timestamp)/60)
+        for (fileset, qi) in quota.quota_map.items():
+            pp = quota_pretty_print(storage_name, fileset, qi, opts.options.fileset_prefixes, warning)
+            if pp:
+                print pp
 
 
 def print_vo_quota(opts, storage, vos, now):
@@ -142,14 +142,13 @@ def print_vo_quota(opts, storage, vos, now):
             print "%s: WARNING: No VO quota information found" % (storage_name,)
             continue
 
+        warning = ""
         if now - timestamp > opts.options.threshold:
-            print "%s: WARNING: no recent VO quota information (age of data is %d minutes)" % (storage_name,
-                                                                                                (now-timestamp)/60)
-        else:
-            for (fileset, qi) in quota.quota_map.items():
-                pp = quota_pretty_print(storage_name, fileset, qi, opts.options.fileset_prefixes)
-                if pp:
-                    print pp
+            warning = "(age of data is %d minutes)" % ((now-timestamp)/60)
+        for (fileset, qi) in quota.quota_map.items():
+            pp = quota_pretty_print(storage_name, fileset, qi, opts.options.fileset_prefixes, warning)
+            if pp:
+                print pp
 
 
 def main():
