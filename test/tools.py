@@ -253,10 +253,3 @@ class TestNotifications(TestCase):
             mail_subject="Quota on %s exceeded" % (storage_name,),
             message=message,
         )
-
-
-class TestProcessingUserQuota(TestCase):
-    """
-    Tests for the processing of the user quota
-    """
-    pass
