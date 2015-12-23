@@ -46,7 +46,6 @@ from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
 from vsc.filesystem.quota.tools import process_user_quota_store_optional, process_fileset_quota_store_optional
 from vsc.filesystem.quota.tools import notify_exceeding_users, notify_exceeding_filesets
 from vsc.ldap.configuration import VscConfiguration
-from vsc.ldap.utils import LdapQuery
 from vsc.utils import fancylogger
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
@@ -80,7 +79,6 @@ def main():
         client = AccountpageClient(token=opts.options.access_token)
 
         user_id_map = map_uids_to_names()  # is this really necessary?
-        LdapQuery(VscConfiguration())
         gpfs = GpfsOperations()
         storage = VscStorage()
 
