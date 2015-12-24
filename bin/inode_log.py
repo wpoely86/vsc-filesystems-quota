@@ -39,7 +39,6 @@ import time
 
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.utils import fancylogger
-from vsc.utils.mail import VscMail
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
@@ -54,7 +53,7 @@ fancylogger.setLogLevelInfo()
 INODE_STORE_LOG_CRITICAL = 1
 
 
-from vsc.filesystem.quota.process import process_inodes_information, mail_admins
+from vsc.filesystem.quota.tools import process_inodes_information, mail_admins
 
 
 def main():

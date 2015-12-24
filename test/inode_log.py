@@ -9,12 +9,11 @@ Tests for the inode_log.py script in vsc-filesystem-quota.
 
 @author: Andy Georges
 """
-import mock
-
-from unittest import TestCase, TestLoader, TestSuite
 
 from vsc.filesystem.gpfs import GpfsQuota
-from vsc.filesystem.quota.process import InodeCritical, process_inodes_information
+from vsc.filesystem.quota.tools import InodeCritical, process_inodes_information
+
+from vsc.install.testing import TestCase
 
 
 class TestProcessInodesInformation(TestCase):
@@ -64,8 +63,8 @@ class TestProcessInodesInformation(TestCase):
         )
 
         self.usage = {
-           self.names[0]: [self.defaultQuota._replace(filesUsage=self.names[0])],
-           self.names[1]: [self.defaultQuota._replace(filesUsage=self.names[1])],
+            self.names[0]: [self.defaultQuota._replace(filesUsage=self.names[0])],
+            self.names[1]: [self.defaultQuota._replace(filesUsage=self.names[1])],
         }
 
     def testThreshold(self):
@@ -82,10 +81,3 @@ class TestProcessInodesInformation(TestCase):
             },
             "computed dict with critical filesets is the expected dict"
         )
-
-
-
-def suite():
-    """ return all the tests"""
-    s = TestSuite()
-    s.addTests(TestLoader().loadTestsFromTestCase(TestProcessInodesInformation))
