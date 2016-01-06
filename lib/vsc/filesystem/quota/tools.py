@@ -1,5 +1,5 @@
 #
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -121,7 +121,7 @@ The UGent HPC team
 """)
 
 
-def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
+def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False):
     """Store the information in the user directories.
     """
     exceeding_users = []
@@ -136,13 +136,19 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
         user_name = user_map.get(int(user_id), None)
 
         if user_name and user_name.startswith('vsc4'):
+            if quota.exceeds():
+                exceeding_users.append((user_name, quota))
+
+            if not store_cache:
+                continue
+
             user = VscTier2AccountpageUser(user_name, rest_client=client)
-            logger.debug("Checking quota for user %s with ID %s" % (user_name, user_id))
-            logger.debug("User %s quota: %s" % (user, quota))
+            logger.debug("Checking quota for user %s with ID %s", user_name, user_id)
+            logger.debug("User %s quota: %s", user, quota)
 
             path = user._get_path(storage_name)
 
-            logger.debug("path for storing quota info would be %s" % (path,))
+            logger.debug("path for storing quota info would be %s", path)
 
             # FIXME: We need some better way to address this
             # Right now, we replace the nfs mount prefix which the symlink points to
@@ -150,15 +156,15 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
             # symlink problem once we take new default scratch into production
             if gpfs.is_symlink(path):
                 target = os.path.realpath(path)
-                logger.debug("path is a symlink, target is %s" % (target,))
-                logger.debug("login_mount_point for %s is %s" % (storage_name, login_mount_point))
+                logger.debug("path is a symlink, target is %s", target)
+                logger.debug("login_mount_point for %s is %s", storage_name, login_mount_point)
                 if target.startswith(login_mount_point):
                     new_path = target.replace(login_mount_point, gpfs_mount_point, 1)
                     logger.info("Found a symlinked path %s to the nfs mount point %s. Replaced with %s" %
                                 (path, login_mount_point, gpfs_mount_point))
                 else:
-                    logger.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly"
-                                   % (user_name, storage_name))
+                    logger.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly",
+                                   user_name, storage_name)
             else:
                 new_path = path
 
@@ -169,8 +175,8 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
 
             if dry_run:
                 logger.info("Dry run: would update cache for %s at %s with %s",
-                            storage_name, new_path, "%s" % (quota,))
-                logger.info("Dry run: would chmod 640 %s" % (filename,))
+                            storage_name, new_path, "%s", quota)
+                logger.info("Dry run: would chmod 640 %s", filename)
                 logger.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
             else:
                 cache = FileCache(filename, False)
@@ -184,9 +190,6 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
                 gpfs.ignorerealpathmismatch = False
 
             logger.info("Stored user %s quota for storage %s at %s" % (user_name, storage_name, filename))
-
-            if quota.exceeds():
-                exceeding_users.append((user_name, quota))
 
     return exceeding_users
 
@@ -291,7 +294,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
     return entity
 
 
-def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
+def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False):
     """Store the quota information in the filesets.
     """
 
@@ -300,20 +303,26 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
 
     push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
 
-    logger.info("filesets = %s" % (filesets))
+    logger.info("filesets = %s", filesets)
 
     for (fileset, quota) in quota_map.items():
         fileset_name = filesets[filesystem][fileset]['filesetName']
-        logger.debug("Fileset %s quota: %s" % (fileset_name, quota))
+        logger.debug("Fileset %s quota: %s", fileset_name, quota)
+
+        if quota.exceeds():
+            exceeding_filesets.append((fileset_name, quota))
+
+        if not store_cache:
+            continue
 
         path = filesets[filesystem][fileset]['path']
         filename = os.path.join(path, ".quota_fileset.json.gz")
         path_stat = os.stat(path)
 
         if dry_run:
-            logger.info("Dry run: would update cache for %s at %s with %s" % (storage_name, path, "%s" % (quota,)))
-            logger.info("Dry run: would chmod 640 %s" % (filename,))
-            logger.info("Dry run: would chown %s to %s %s" % (filename, path_stat.st_uid, path_stat.st_gid))
+            logger.info("Dry run: would update cache for %s at %s with %s", storage_name, path, "%s" % (quota,))
+            logger.info("Dry run: would chmod 640 %s", filename)
+            logger.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
         else:
             # TODO: This should somehow be some atomic operation.
             cache = FileCache(filename, False)
@@ -324,10 +333,7 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
             gpfs.chmod(0640, filename)
             gpfs.chown(path_stat.st_uid, path_stat.st_gid, filename)
 
-        logger.info("Stored fileset %s [%s] quota for storage %s at %s" % (fileset, fileset_name, storage, filename))
-
-        if quota.exceeds():
-            exceeding_filesets.append((fileset_name, quota))
+        logger.info("Stored fileset %s [%s] quota for storage %s at %s", fileset, fileset_name, storage, filename)
 
     return exceeding_filesets
 
