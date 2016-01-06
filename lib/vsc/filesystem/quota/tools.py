@@ -129,7 +129,8 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     gpfs_mount_point = storage[storage_name].gpfs_mount_point
     path_template = storage.path_templates[storage_name]
 
-    push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
+    if store_cache:
+        push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
 
     for (user_id, quota) in quota_map.items():
 
@@ -301,7 +302,8 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
     filesets = gpfs.list_filesets()
     exceeding_filesets = []
 
-    push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
+    if store_cache:
+        push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
 
     logger.info("filesets = %s", filesets)
 
