@@ -1,3 +1,3 @@
 # Description
 
-Quota tools and scripts for all our filesystems
+Tools to query and store quota usage information and to show them to the users

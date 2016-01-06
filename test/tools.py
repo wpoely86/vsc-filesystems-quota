@@ -32,8 +32,6 @@ Tests for all helper functions in vsc.filesystems.quota.tools.
 import mock
 import time
 
-from collections import namedtuple
-
 import vsc.filesystem.quota.tools as tools
 
 from vsc.accountpage.wrappers import mkVscAccount, mkVo

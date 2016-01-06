@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -173,4 +173,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
