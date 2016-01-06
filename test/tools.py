@@ -251,3 +251,75 @@ class TestNotifications(TestCase):
             mail_subject="Quota on %s exceeded" % (storage_name,),
             message=message,
         )
+
+
+class TestProcessing(TestCase):
+
+    @mock.patch('vsc.filesystem.quota.tools.os')
+    @mock.patch('vsc.filesystem.quota.tools.push_user_quota_to_django')
+    @mock.patch('vsc.filesystem.quota.tools.VscTier2AccountpageUser', autospec=True)
+    def test_process_user_quota_no_store(self, mock_user, mock_push_quota, mock_os):
+
+        storage_name = VSC_DATA
+        item = 'vsc40075'
+        quota = QuotaUser(storage_name, 'vulpixdata', item)
+        quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+        quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        storage = mock.MagicMock()
+        storage[storage_name] = mock.MagicMock()
+        storage[storage_name].login_mount_point = "/my_login_mount_point"
+        storage[storage_name].gpfs_mount_point = "/my_gpfs_mount_point"
+        storage.path_templates = mock.MagicMock()
+
+        gpfs = mock.MagicMock()
+        gpfs.is_symlink.return_value = False
+
+        client = mock.MagicMock()
+
+        filesystem = None
+        quota_map = {'2540075': quota}
+        user_map = {2540075: 'vsc40075'}
+
+        store_cache = False
+
+        tools.process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
+
+        mock_os.stat.assert_not_called()
+
+    @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
+    @mock.patch('vsc.filesystem.quota.tools.os')
+    @mock.patch('vsc.filesystem.quota.tools.push_user_quota_to_django')
+    @mock.patch('vsc.filesystem.quota.tools.VscTier2AccountpageUser', autospec=True)
+    def test_process_user_quota_store(self, mock_user, mock_push_quota, mock_os, mock_cache):
+
+        storage_name = VSC_DATA
+        item = 'vsc40075'
+        quota = QuotaUser(storage_name, 'vulpixdata', item)
+        quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+        quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        mock_user.return_value = mock.MagicMock()
+        mock_user_instance = mock_user.return_value
+        mock_user_instance._get_path.return_value = "/my_path"
+
+        storage = mock.MagicMock()
+        storage[storage_name] = mock.MagicMock()
+        storage[storage_name].login_mount_point = "/my_login_mount_point"
+        storage[storage_name].gpfs_mount_point = "/my_gpfs_mount_point"
+        storage.path_templates = mock.MagicMock()
+
+        gpfs = mock.MagicMock()
+        gpfs.is_symlink.return_value = False
+
+        client = mock.MagicMock()
+
+        filesystem = None
+        quota_map = {'2540075': quota}
+        user_map = {2540075: 'vsc40075'}
+
+        store_cache = True
+
+        tools.process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
+
+        mock_os.stat.assert_called_with("/my_path")
