@@ -36,7 +36,7 @@ import vsc.filesystem.quota.tools as tools
 
 from vsc.accountpage.wrappers import mkVscAccount, mkVo
 from vsc.config.base import VSC_HOME, VSC_DATA
-from vsc.filesystem.quota.entities import QuotaUser
+from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.install.testing import TestCase
 
 
@@ -262,7 +262,8 @@ class TestProcessing(TestCase):
 
         storage_name = VSC_DATA
         item = 'vsc40075'
-        quota = QuotaUser(storage_name, 'vulpixdata', item)
+        filesystem = 'vulpixdata'
+        quota = QuotaUser(storage_name, filesystem, item)
         quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
         quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
 
@@ -277,7 +278,6 @@ class TestProcessing(TestCase):
 
         client = mock.MagicMock()
 
-        filesystem = None
         quota_map = {'2540075': quota}
         user_map = {2540075: 'vsc40075'}
 
@@ -295,13 +295,15 @@ class TestProcessing(TestCase):
 
         storage_name = VSC_DATA
         item = 'vsc40075'
-        quota = QuotaUser(storage_name, 'vulpixdata', item)
+        filesystem = 'vulpixdata'
+        quota = QuotaUser(storage_name, filesystem, item)
         quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
         quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
 
         mock_user.return_value = mock.MagicMock()
         mock_user_instance = mock_user.return_value
         mock_user_instance._get_path.return_value = "/my_path"
+
 
         storage = mock.MagicMock()
         storage[storage_name] = mock.MagicMock()
@@ -314,12 +316,77 @@ class TestProcessing(TestCase):
 
         client = mock.MagicMock()
 
-        filesystem = None
         quota_map = {'2540075': quota}
         user_map = {2540075: 'vsc40075'}
 
         store_cache = True
 
         tools.process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
+
+        mock_os.stat.assert_called_with("/my_path")
+
+    @mock.patch('vsc.filesystem.quota.tools.os')
+    @mock.patch('vsc.filesystem.quota.tools.push_vo_quota_to_django')
+    def test_process_fileset_quota_no_store(self, mock_push_quota, mock_os):
+
+        storage_name = VSC_DATA
+        filesystem = 'vulpixdata'
+        fileset = 'gvo00002'
+        quota = QuotaFileset(storage_name, filesystem, fileset)
+        quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        storage = mock.MagicMock()
+
+        gpfs = mock.MagicMock()
+        gpfs.list_filesets.return_value = {
+            filesystem: {
+                fileset: {
+                    'path': '/my_path',
+                    'filesetName': fileset,
+                }
+            }
+        }
+
+        client = mock.MagicMock()
+
+        quota_map = {fileset: quota}
+
+        store_cache = False
+
+        tools.process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
+
+        mock_os.stat.assert_not_called()
+
+    @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
+    @mock.patch('vsc.filesystem.quota.tools.os')
+    @mock.patch('vsc.filesystem.quota.tools.push_vo_quota_to_django')
+    def test_process_fileset_quota_store(self, mock_push_quota, mock_os, mock_cache):
+
+        storage_name = VSC_DATA
+        filesystem = 'vulpixdata'
+        fileset = 'gvo00002'
+        quota = QuotaUser(storage_name, filesystem, fileset)
+        quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+        quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        storage = mock.MagicMock()
+
+        gpfs = mock.MagicMock()
+        gpfs.list_filesets.return_value = {
+            filesystem: {
+                fileset: {
+                    'path': '/my_path',
+                    'filesetName': fileset,
+                }
+            }
+        }
+
+        client = mock.MagicMock()
+
+        quota_map = {fileset: quota}
+
+        store_cache = True
+
+        tools.process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_called_with("/my_path")
