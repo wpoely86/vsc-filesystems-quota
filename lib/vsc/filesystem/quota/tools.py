@@ -36,6 +36,7 @@ import re
 import time
 
 from string import Template
+from urllib2 import HTTPError
 
 from vsc.administration.user import VscTier2AccountpageUser
 from vsc.administration.vo import VscTier2AccountpageVo
@@ -149,7 +150,18 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
             if not store_cache:
                 continue
 
-            user = VscTier2AccountpageUser(user_name, rest_client=client)
+            if user_name in ('vsc40024',):
+                logger.info("Not processing %s", user_name)
+                continue
+            try:
+                user = VscTier2AccountpageUser(user_name, rest_client=client)
+            except HTTPError:
+                logger.warning("Cannot find an account for user %s", user_name)
+                continue
+            except AttributeError:
+                logger.warning("Cannot store quota infor for account %s", user_name)
+                continue
+
             logger.debug("Checking quota for user %s with ID %s", user_name, user_id)
             logger.debug("User %s quota: %s", user, quota)
 
