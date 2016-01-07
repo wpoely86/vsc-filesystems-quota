@@ -283,7 +283,7 @@ class TestProcessing(TestCase):
 
         store_cache = False
 
-        tools.process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
+        tools.process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_not_called()
         mock_push_quota.assert_not_called()
@@ -322,7 +322,7 @@ class TestProcessing(TestCase):
 
         store_cache = True
 
-        tools.process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
+        tools.process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_called_with("/my_path")
         mock_push_quota.assert_called_with(user_map, storage_name, storage.path_templates[storage_name], quota_map, client, False)
@@ -355,7 +355,7 @@ class TestProcessing(TestCase):
 
         store_cache = False
 
-        tools.process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
+        tools.process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_not_called()
         mock_push_quota.assert_not_called()
@@ -390,7 +390,7 @@ class TestProcessing(TestCase):
 
         store_cache = True
 
-        tools.process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
+        tools.process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_called_with("/my_path")
         mock_push_quota.assert_called_with(storage_name, quota_map, client, False)
