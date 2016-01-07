@@ -125,7 +125,7 @@ def main():
                                                                      filesystem,
                                                                      quota_storage_map['FILESET'],
                                                                      client,
-                                                                     opts.options.store_cache,
+                                                                     opts.options.write_cache,
                                                                      opts.options.dry_run)
             exceeding_users[storage_name] = process_user_quota(storage,
                                                                gpfs,
@@ -134,7 +134,7 @@ def main():
                                                                quota_storage_map['USR'],
                                                                user_id_map,
                                                                client,
-                                                               opts.options.store_cache,
+                                                               opts.options.write_cache,
                                                                opts.options.dry_run)
 
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
