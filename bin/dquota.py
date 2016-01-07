@@ -117,23 +117,12 @@ def main():
                 replication_factor
             )
 
-            exceeding_filesets[storage_name] = process_fileset_quota_store_optional(storage,
-                                                                                    gpfs,
-                                                                                    storage_name,
-                                                                                    filesystem,
-                                                                                    quota_storage_map['FILESET'],
-                                                                                    client,
-                                                                                    opts.options.write_cache,
-                                                                                    opts.options.dry_run)
-            exceeding_users[storage_name] = process_user_quota_store_optional(storage,
-                                                                              gpfs,
-                                                                              storage_name,
-                                                                              filesystem,
-                                                                              quota_storage_map['USR'],
-                                                                              user_id_map,
-                                                                              client,
-                                                                              opts.options.write_cache,
-                                                                              opts.options.dry_run)
+            exceeding_filesets[storage_name] = process_fileset_quota_store_optional(
+                storage, gpfs, storage_name, filesystem, quota_storage_map['FILESET'],
+                client, opts.options.write_cache, opts.options.dry_run)
+            exceeding_users[storage_name] = process_user_quota_store_optional(
+                storage, gpfs, storage_name, filesystem, quota_storage_map['USR'],
+                user_id_map, client, opts.options.write_cache, opts.options.dry_run)
 
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
             if exceeding_filesets[storage_name]:
