@@ -526,7 +526,7 @@ def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, c
         updated = cache.update(item, quota, QUOTA_NOTIFICATION_CACHE_THRESHOLD)
         logging.info("Storage %s: cache entry for %s was updated: %s" % (storage, item, updated))
         if updated:
-            notify(storage, item, quota, dry_run)
+            notify(storage, item, quota, client, dry_run)
         updated_cache = updated_cache or updated
 
     if not dry_run and updated_cache:

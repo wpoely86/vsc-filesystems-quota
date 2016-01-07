@@ -133,7 +133,7 @@ class TestNotifications(TestCase):
 
         mock_filecache_instance.update.assert_called_with('item1', 123, tools.QUOTA_NOTIFICATION_CACHE_THRESHOLD)
         mock_filecache_instance.close.assert_called_with()
-        mock_notify.assert_called_with(storage, 'item1', 123, False)
+        mock_notify.assert_called_with(storage, 'item1', 123, mock_client, False)
 
     @mock.patch('vsc.filesystem.quota.tools.VscMail', autospec=True)
     @mock.patch('vsc.accountpage.client.AccountpageClient', autospec=True)
