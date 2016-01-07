@@ -50,7 +50,7 @@ fancylogger.logToScreen(True)
 fancylogger.setLogLevelWarning()
 logger = fancylogger.getLogger('show_quota')
 
-DEFAULT_ALLOWED_TIME_THRESHOLD = 45 * 60
+DEFAULT_ALLOWED_TIME_THRESHOLD = 60 * 60
 
 def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixes, warning=""):
     """Returns a nice looking string with all the required quota information."""
@@ -174,6 +174,9 @@ def main():
     opts.options.vo = opts.options.vo and vos
 
     now = time.time()
+
+    print "The information shown here is derived from information that is cached hourly."
+    print "For more fine-grained data, please see your account page at https://account.vscentrum.be."
 
     print_user_quota(opts, storage, user_name, now)
 
