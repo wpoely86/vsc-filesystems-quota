@@ -23,7 +23,7 @@ import vsc.install.shared_setup as shared_setup
 from vsc.install.shared_setup import ag
 
 PACKAGE = {
-    'version': '0.7.1',
+    'version': '0.8',
     'author': [ag],
     'maintainer': [ag],
     'install_requires': [
