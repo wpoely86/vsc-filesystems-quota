@@ -176,7 +176,7 @@ def main():
     now = time.time()
 
     print "The information shown here is derived from information that is cached hourly."
-    print "For more fine-grained data, please see your account page at https://account.vscentrum.be."
+    print "For more fine-grained data, please see your account page at https://account.vscentrum.be"
 
     print_user_quota(opts, storage, user_name, now)
 
