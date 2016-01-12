@@ -121,6 +121,9 @@ Kind regards,
 The UGent HPC team
 """)
 
+IGNORED_ACCOUNTS = ('vsc40024',)
+
+
 
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
     """wrapper around the new function to keep the old behaviour intact"""
@@ -150,7 +153,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
             if not store_cache:
                 continue
 
-            if user_name in ('vsc40024',):
+            if user_name in IGNORED_ACCOUNTS:
                 logger.info("Not processing %s", user_name)
                 continue
             try:
