@@ -452,7 +452,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
     if item.startswith("gvo"):  # VOs
         vo = VscTier2AccountpageVo(item, rest_client=client)
         for user in [VscTier2AccountpageUser(m, rest_client=client) for m in vo.vo.moderators]:
-            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
+            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                            vo_name=item,
                                                                            storage_name=storage_name,
                                                                            quota_info="%s" % (quota,),
@@ -482,7 +482,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
             storage_names.append(storage_name + "_VO")
         storage_names = ", ".join(["$" + sn for sn in storage_names])
 
-        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
+        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                     storage_name=storage_names,
                                                                     quota_info="%s" % (quota,),
                                                                     time=time.ctime())
