@@ -34,7 +34,7 @@ import time
 
 import vsc.filesystem.quota.tools as tools
 
-from vsc.accountpage.wrappers import mkVscAccount, mkVo
+from vsc.accountpage.wrappers import mkVscAccount, mkVo, mkVscAccountPerson
 from vsc.config.base import VSC_HOME, VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.install.testing import TestCase
@@ -170,9 +170,14 @@ class TestNotifications(TestCase):
                 'institute_login': 'wwonka',
             },
         })
+        mock_user_instance.person = mkVscAccountPerson({
+            'gecos': 'Willy Wonka',
+            'institute': 'gent',
+            'institute_login': 'wwonka',
+        })
 
         message = tools.QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(
-            user_name=mock_user_instance.account.person.gecos,
+            user_name=mock_user_instance.person.gecos,
             vo_name=item,
             storage_name=storage_name,
             quota_info="%s" % (quota,),
@@ -218,6 +223,12 @@ class TestNotifications(TestCase):
                 'institute_login': 'wwonka',
             },
         })
+        mock_user_instance.person = mkVscAccountPerson({
+            'gecos': 'Willy Wonka',
+            'institute': 'gent',
+            'institute_login': 'wwonka',
+        })
+
 
         mock_vo.return_value = mock.MagicMock()
         mock_vo_instance = mock_vo.return_value
@@ -237,7 +248,7 @@ class TestNotifications(TestCase):
         tools.notify(storage_name, item, quota, mock_client)
 
         message = tools.VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(
-            user_name=mock_user_instance.account.person.gecos,
+            user_name=mock_user_instance.person.gecos,
             vo_name=item,
             storage_name=storage_name,
             quota_info="%s" % (quota,),
