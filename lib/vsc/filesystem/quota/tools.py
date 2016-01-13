@@ -121,9 +121,6 @@ Kind regards,
 The UGent HPC team
 """)
 
-IGNORED_ACCOUNTS = ('vsc40024',)
-
-
 
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
     """wrapper around the new function to keep the old behaviour intact"""
@@ -153,9 +150,6 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
             if not store_cache:
                 continue
 
-            if user_name in IGNORED_ACCOUNTS:
-                logger.info("Not processing %s", user_name)
-                continue
             try:
                 user = VscTier2AccountpageUser(user_name, rest_client=client)
             except HTTPError:
@@ -455,7 +449,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
     if item.startswith("gvo"):  # VOs
         vo = VscTier2AccountpageVo(item, rest_client=client)
         for user in [VscTier2AccountpageUser(m, rest_client=client) for m in vo.vo.moderators]:
-            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
+            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                            vo_name=item,
                                                                            storage_name=storage_name,
                                                                            quota_info="%s" % (quota,),
@@ -485,7 +479,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
             storage_names.append(storage_name + "_VO")
         storage_names = ", ".join(["$" + sn for sn in storage_names])
 
-        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
+        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                     storage_name=storage_names,
                                                                     quota_info="%s" % (quota,),
                                                                     time=time.ctime())
