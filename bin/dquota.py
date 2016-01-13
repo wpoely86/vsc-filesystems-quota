@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,7 +31,8 @@ Script to check for quota transgressions and notify the offending users.
 - checks all storage systems that are listed in /etc/quota_check.conf
 - writes quota information in gzipped json files in the target directory for the
   affected entity (user, project, vo)
-- mails a user, vo or project moderator (TODO)
+- mails a user, vo or project moderator
+- can dump data to the account page (through a REST API) or in files in the user's directories
 
 @author Andy Georges
 """
@@ -42,10 +43,9 @@ from vsc.accountpage.client import AccountpageClient
 from vsc.config.base import VscStorage
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
-from vsc.filesystem.quota.tools import process_user_quota, process_fileset_quota
+from vsc.filesystem.quota.tools import process_user_quota_store_optional, process_fileset_quota_store_optional
 from vsc.filesystem.quota.tools import notify_exceeding_users, notify_exceeding_filesets
 from vsc.ldap.configuration import VscConfiguration
-from vsc.ldap.utils import LdapQuery
 from vsc.utils import fancylogger
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
@@ -69,6 +69,7 @@ def main():
     options = {
         'nagios-check-interval-threshold': NAGIOS_CHECK_INTERVAL_THRESHOLD,
         'storage': ('the VSC filesystems that are checked by this script', None, 'extend', []),
+        'write-cache': ('Write the data into the cache files in the FS', None, 'store_true', False),
         'account_page_url': ('Base URL of the account page', None, 'store', 'https://account.vscentrum.be/django'),
         'access_token': ('OAuth2 token to access the account page REST API', None, 'store', None),
     }
@@ -78,7 +79,6 @@ def main():
         client = AccountpageClient(token=opts.options.access_token)
 
         user_id_map = map_uids_to_names()  # is this really necessary?
-        LdapQuery(VscConfiguration())
         gpfs = GpfsOperations()
         storage = VscStorage()
 
@@ -117,21 +117,12 @@ def main():
                 replication_factor
             )
 
-            exceeding_filesets[storage_name] = process_fileset_quota(storage,
-                                                                     gpfs,
-                                                                     storage_name,
-                                                                     filesystem,
-                                                                     quota_storage_map['FILESET'],
-                                                                     client,
-                                                                     opts.options.dry_run)
-            exceeding_users[storage_name] = process_user_quota(storage,
-                                                               gpfs,
-                                                               storage_name,
-                                                               filesystem,
-                                                               quota_storage_map['USR'],
-                                                               user_id_map,
-                                                               client,
-                                                               opts.options.dry_run)
+            exceeding_filesets[storage_name] = process_fileset_quota_store_optional(
+                storage, gpfs, storage_name, filesystem, quota_storage_map['FILESET'],
+                client, opts.options.write_cache, opts.options.dry_run)
+            exceeding_users[storage_name] = process_user_quota_store_optional(
+                storage, gpfs, storage_name, filesystem, quota_storage_map['USR'],
+                user_id_map, client, opts.options.write_cache, opts.options.dry_run)
 
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
             if exceeding_filesets[storage_name]:

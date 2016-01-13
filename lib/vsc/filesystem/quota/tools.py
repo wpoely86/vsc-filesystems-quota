@@ -1,5 +1,5 @@
 #
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,7 @@ import re
 import time
 
 from string import Template
+from urllib2 import HTTPError
 
 from vsc.administration.user import VscTier2AccountpageUser
 from vsc.administration.vo import VscTier2AccountpageVo
@@ -122,6 +123,12 @@ The UGent HPC team
 
 
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
+    """wrapper around the new function to keep the old behaviour intact"""
+    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run)
+    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run)
+
+
+def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False):
     """Store the information in the user directories.
     """
     exceeding_users = []
@@ -129,20 +136,35 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     gpfs_mount_point = storage[storage_name].gpfs_mount_point
     path_template = storage.path_templates[storage_name]
 
-    push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
+    if store_cache:
+        push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
 
     for (user_id, quota) in quota_map.items():
 
         user_name = user_map.get(int(user_id), None)
 
         if user_name and user_name.startswith('vsc4'):
-            user = VscTier2AccountpageUser(user_name, rest_client=client)
-            logger.debug("Checking quota for user %s with ID %s" % (user_name, user_id))
-            logger.debug("User %s quota: %s" % (user, quota))
+            if quota.exceeds():
+                exceeding_users.append((user_name, quota))
+
+            if not store_cache:
+                continue
+
+            try:
+                user = VscTier2AccountpageUser(user_name, rest_client=client)
+            except HTTPError:
+                logger.warning("Cannot find an account for user %s", user_name)
+                continue
+            except AttributeError:
+                logger.warning("Cannot store quota infor for account %s", user_name)
+                continue
+
+            logger.debug("Checking quota for user %s with ID %s", user_name, user_id)
+            logger.debug("User %s quota: %s", user, quota)
 
             path = user._get_path(storage_name)
 
-            logger.debug("path for storing quota info would be %s" % (path,))
+            logger.debug("path for storing quota info would be %s", path)
 
             # FIXME: We need some better way to address this
             # Right now, we replace the nfs mount prefix which the symlink points to
@@ -150,15 +172,15 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
             # symlink problem once we take new default scratch into production
             if gpfs.is_symlink(path):
                 target = os.path.realpath(path)
-                logger.debug("path is a symlink, target is %s" % (target,))
-                logger.debug("login_mount_point for %s is %s" % (storage_name, login_mount_point))
+                logger.debug("path is a symlink, target is %s", target)
+                logger.debug("login_mount_point for %s is %s", storage_name, login_mount_point)
                 if target.startswith(login_mount_point):
                     new_path = target.replace(login_mount_point, gpfs_mount_point, 1)
                     logger.info("Found a symlinked path %s to the nfs mount point %s. Replaced with %s" %
                                 (path, login_mount_point, gpfs_mount_point))
                 else:
-                    logger.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly"
-                                   % (user_name, storage_name))
+                    logger.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly",
+                                   user_name, storage_name)
             else:
                 new_path = path
 
@@ -169,8 +191,8 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
 
             if dry_run:
                 logger.info("Dry run: would update cache for %s at %s with %s",
-                            storage_name, new_path, "%s" % (quota,))
-                logger.info("Dry run: would chmod 640 %s" % (filename,))
+                            storage_name, new_path, "%s", quota)
+                logger.info("Dry run: would chmod 640 %s", filename)
                 logger.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
             else:
                 cache = FileCache(filename, False)
@@ -184,9 +206,6 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
                 gpfs.ignorerealpathmismatch = False
 
             logger.info("Stored user %s quota for storage %s at %s" % (user_name, storage_name, filename))
-
-            if quota.exceeds():
-                exceeding_users.append((user_name, quota))
 
     return exceeding_users
 
@@ -292,28 +311,41 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
 
 
 def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
+    """wrapper around the new function to keep the old behaviour intact"""
+    process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, True, dry_run)
+    process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
+
+
+def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False):
     """Store the quota information in the filesets.
     """
 
     filesets = gpfs.list_filesets()
     exceeding_filesets = []
 
-    push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
+    if store_cache:
+        push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
 
-    logger.info("filesets = %s" % (filesets))
+    logger.info("filesets = %s", filesets)
 
     for (fileset, quota) in quota_map.items():
         fileset_name = filesets[filesystem][fileset]['filesetName']
-        logger.debug("Fileset %s quota: %s" % (fileset_name, quota))
+        logger.debug("Fileset %s quota: %s", fileset_name, quota)
+
+        if quota.exceeds():
+            exceeding_filesets.append((fileset_name, quota))
+
+        if not store_cache:
+            continue
 
         path = filesets[filesystem][fileset]['path']
         filename = os.path.join(path, ".quota_fileset.json.gz")
         path_stat = os.stat(path)
 
         if dry_run:
-            logger.info("Dry run: would update cache for %s at %s with %s" % (storage_name, path, "%s" % (quota,)))
-            logger.info("Dry run: would chmod 640 %s" % (filename,))
-            logger.info("Dry run: would chown %s to %s %s" % (filename, path_stat.st_uid, path_stat.st_gid))
+            logger.info("Dry run: would update cache for %s at %s with %s", storage_name, path, "%s" % (quota,))
+            logger.info("Dry run: would chmod 640 %s", filename)
+            logger.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
         else:
             # TODO: This should somehow be some atomic operation.
             cache = FileCache(filename, False)
@@ -324,10 +356,7 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
             gpfs.chmod(0640, filename)
             gpfs.chown(path_stat.st_uid, path_stat.st_gid, filename)
 
-        logger.info("Stored fileset %s [%s] quota for storage %s at %s" % (fileset, fileset_name, storage, filename))
-
-        if quota.exceeds():
-            exceeding_filesets.append((fileset_name, quota))
+        logger.info("Stored fileset %s [%s] quota for storage %s at %s", fileset, fileset_name, storage, filename)
 
     return exceeding_filesets
 
@@ -420,7 +449,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
     if item.startswith("gvo"):  # VOs
         vo = VscTier2AccountpageVo(item, rest_client=client)
         for user in [VscTier2AccountpageUser(m, rest_client=client) for m in vo.vo.moderators]:
-            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
+            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                            vo_name=item,
                                                                            storage_name=storage_name,
                                                                            quota_info="%s" % (quota,),
@@ -450,7 +479,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
             storage_names.append(storage_name + "_VO")
         storage_names = ", ".join(["$" + sn for sn in storage_names])
 
-        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.account.person.gecos,
+        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
                                                                     storage_name=storage_names,
                                                                     quota_info="%s" % (quota,),
                                                                     time=time.ctime())
@@ -494,7 +523,7 @@ def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, c
         updated = cache.update(item, quota, QUOTA_NOTIFICATION_CACHE_THRESHOLD)
         logging.info("Storage %s: cache entry for %s was updated: %s" % (storage, item, updated))
         if updated:
-            notify(storage, item, quota, dry_run)
+            notify(storage, item, quota, client, dry_run)
         updated_cache = updated_cache or updated
 
     if not dry_run and updated_cache:
