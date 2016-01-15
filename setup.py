@@ -26,6 +26,7 @@ PACKAGE = {
     'version': '0.8',
     'author': [ag],
     'maintainer': [ag],
+    'excluded_pkgs_rpm': ['vsc', 'vsc.filesystem', 'vsc.filesystem.quota']
     'install_requires': [
         'vsc-accountpage-clients',
         'vsc-base >= 1.6.6',
