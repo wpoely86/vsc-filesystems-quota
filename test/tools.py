@@ -297,7 +297,7 @@ class TestProcessing(TestCase):
         tools.process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_not_called()
-        mock_push_quota.assert_not_called()
+        mock_push_quota.assert_called_with(user_map, storage_name, storage.path_templates[storage_name], quota_map, client, False)
 
     @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
     @mock.patch('vsc.filesystem.quota.tools.os')
@@ -336,7 +336,7 @@ class TestProcessing(TestCase):
         tools.process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_called_with("/my_path")
-        mock_push_quota.assert_called_with(user_map, storage_name, storage.path_templates[storage_name], quota_map, client, False)
+        mock_push_quota.assert_not_called()
 
     @mock.patch('vsc.filesystem.quota.tools.os')
     @mock.patch('vsc.filesystem.quota.tools.push_vo_quota_to_django')
@@ -369,7 +369,7 @@ class TestProcessing(TestCase):
         tools.process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_not_called()
-        mock_push_quota.assert_not_called()
+        mock_push_quota.assert_called_with(storage_name, quota_map, client, False)
 
     @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
     @mock.patch('vsc.filesystem.quota.tools.os')
@@ -404,4 +404,4 @@ class TestProcessing(TestCase):
         tools.process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_called_with("/my_path")
-        mock_push_quota.assert_called_with(storage_name, quota_map, client, False)
+        mock_push_quota.assert_not_called()
