@@ -43,7 +43,7 @@ from vsc.administration.vo import VscTier2AccountpageVo
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils import fancylogger
 from vsc.utils.cache import FileCache
-from vsc.utils.mail import VscMail
+from vsc.utils.mail import VscMail, VscMailError
 
 GPFS_GRACE_REGEX = re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
 
@@ -433,11 +433,12 @@ def sanitize_quota_information(fileset_name, quota):
     """Sanitize the information that is store at the user's side.
 
     There should be _no_ information regarding filesets besides:
-        - vsc4xy
+        - vscixy (not that on muk, each user had his own fileset, so vsc1, vsc2, and vsc3 prefixes are possible)
         - gvo*
+        - project
     """
     for (fileset, value) in quota.quota_map.items():
-        if not fileset.startswith('vsc4') and not fileset.startswith('gvo') and not fileset.startswith(fileset_name):
+        if not fileset.startswith('vsc') and not fileset.startswith('gvo') and not fileset.startswith(fileset_name):
             quota.quota_map.pop(fileset)
 
 
@@ -457,11 +458,14 @@ def notify(storage_name, item, quota, client, dry_run=False):
             if dry_run:
                 logger.info("Dry-run, would send the following message: %s" % (message,))
             else:
-                mail.sendTextMail(mail_to=user.account.email,
-                                  mail_from="hpc@ugent.be",
-                                  reply_to="hpc@ugent.be",
-                                  mail_subject="Quota on %s exceeded" % (storage_name,),
-                                  message=message)
+                try:
+                    mail.sendTextMail(mail_to=user.account.email,
+                                      mail_from="hpc@ugent.be",
+                                      reply_to="hpc@ugent.be",
+                                      mail_subject="Quota on %s exceeded" % (storage_name,),
+                                      message=message)
+                except VscMailError, err:
+                    logger.error("Unable to send mail to %s: %s", user.account.email, err)
             logger.info("notification: recipient %s storage %s quota_string %s" %
                         (user.account.vsc_id, storage_name, "%s" % (quota,)))
 
