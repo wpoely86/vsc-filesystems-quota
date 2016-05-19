@@ -466,8 +466,9 @@ def notify(storage_name, item, quota, client, dry_run=False):
                                       message=message)
                 except VscMailError, err:
                     logger.error("Unable to send mail to %s: %s", user.account.email, err)
-            logger.info("notification: recipient %s storage %s quota_string %s" %
-                        (user.account.vsc_id, storage_name, "%s" % (quota,)))
+                else:
+                    logger.info("notification: recipient %s storage %s quota_string %s" %
+                                (user.account.vsc_id, storage_name, "%s" % (quota,)))
 
     elif item.startswith("gpr"):  # projects
         pass
