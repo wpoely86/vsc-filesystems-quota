@@ -6,7 +6,7 @@
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # the Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -175,7 +175,7 @@ def main():
 
     now = time.time()
 
-    print "The information shown here is derived from information that is cached hourly."
+    print "The information shown here is derived from information that is cached every two hours."
     print "For more fine-grained data, please see your account page at https://account.vscentrum.be"
 
     print_user_quota(opts, storage, user_name, now)
