@@ -433,7 +433,7 @@ def sanitize_quota_information(fileset_name, quota):
     """Sanitize the information that is store at the user's side.
 
     There should be _no_ information regarding filesets besides:
-        - vscixy (not that on muk, each user had his own fileset, so vsc1, vsc2, and vsc3 prefixes are possible)
+        - vscixy (note that on muk, each user had his own fileset, so vsc1, vsc2, and vsc3 prefixes are possible)
         - gvo*
         - project
     """
