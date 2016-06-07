@@ -39,6 +39,7 @@ from vsc.config.base import VSC_HOME, VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.filesystem.quota.tools import push_vo_quota_to_django
 from vsc.install.testing import TestCase
+from vsc.utils.mail import VscMailError
 
 
 class TestAuxiliary(TestCase):
