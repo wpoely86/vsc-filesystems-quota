@@ -38,6 +38,7 @@ from vsc.accountpage.wrappers import mkVscAccount, mkVo, mkVscAccountPerson
 from vsc.config.base import VSC_HOME, VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.install.testing import TestCase
+from vsc.utils.mail import VscMailError
 
 
 class TestAuxiliary(TestCase):
