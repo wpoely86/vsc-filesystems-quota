@@ -150,7 +150,6 @@ class TestNotifications(TestCase):
 
         mock_mail.return_value = mock.MagicMock()
         mock_mail_instance = mock_mail.return_value
-        mock_mail_instance.sendTextMail.return_value = None
         mock_mail_instance.sendTextMail.side_effect = VscMailError("Unknown email address")
 
         mock_user.return_value = mock.MagicMock()
@@ -242,6 +241,83 @@ class TestNotifications(TestCase):
 
         tools.notify(storage_name, item, quota, mock_client)
         mock_mail_instance.sendTextMail.has_calls()
+
+    @mock.patch('vsc.filesystem.quota.tools.VscMail', autospec=True)
+    @mock.patch('vsc.accountpage.client.AccountpageClient', autospec=True)
+    @mock.patch('vsc.filesystem.quota.tools.VscTier2AccountpageUser', autospec=True)
+    @mock.patch('vsc.filesystem.quota.tools.VscTier2AccountpageVo', autospec=True)
+    def test_notify_vo_unknown_email(self, mock_vo, mock_user, mock_client, mock_mail):
+
+        storage_name = VSC_DATA
+        item = 'gvo00002'
+        quota = QuotaUser(storage_name, 'vulpixdata', item)
+        quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+        quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        mock_mail.return_value = mock.MagicMock()
+        mock_mail_instance = mock_mail.return_value
+        mock_mail_instance.sendTextMail.side_effect = VscMailError("Unknown email address")
+
+        mock_user.return_value = mock.MagicMock()
+        mock_user_instance = mock_user.return_value
+        mock_user_instance.account = mkVscAccount({
+            'vsc_id': 'vsc40075',
+            'status': 'active',
+            'vsc_id_number': 2540075,
+            'home_directory': '/does/not/exist/home',
+            'data_directory': '/does/not/exist/data',
+            'scratch_directory': '/does/not/exist/scratch',
+            'login_shell': '/bin/bash',
+            'broken': False,
+            'email': 'vsc40075@example.com',
+            'research_field': 'many',
+            'create_timestamp': '200901010000Z',
+            'person': {
+                'gecos': 'Willy Wonka',
+                'institute': 'gent',
+                'institute_login': 'wwonka',
+            },
+        })
+        mock_user_instance.person = mkVscAccountPerson({
+            'gecos': 'Willy Wonka',
+            'institute': 'gent',
+            'institute_login': 'wwonka',
+        })
+
+
+        mock_vo.return_value = mock.MagicMock()
+        mock_vo_instance = mock_vo.return_value
+        mock_vo_instance.vo = mkVo({
+            'vsc_id': 'gvo00002',
+            'status': 'active',
+            'vsc_id_number': 2640002,
+            'institute': 'gent',
+            'fairshare': 0,
+            'data_path': '/does/not/exist/data',
+            'scratch_path': 'does/not/exist/scratch',
+            'description': 'sputum',
+            'members': ['vsc40075'],
+            'moderators': ['vsc40075'],
+        })
+
+        tools.notify(storage_name, item, quota, mock_client)
+
+        message = tools.VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(
+            user_name=mock_user_instance.person.gecos,
+            vo_name=item,
+            storage_name=storage_name,
+            quota_info="%s" % (quota,),
+            time=time.ctime()
+        )
+
+        mock_mail_instance.sendTextMail.assert_called_once_with(
+            mail_to=mock_user_instance.account.email,
+            mail_from="hpc@ugent.be",
+            reply_to="hpc@ugent.be",
+            mail_subject="Quota on %s exceeded" % (storage_name,),
+            message=message,
+        )
+
 
     @mock.patch('vsc.filesystem.quota.tools.VscMail', autospec=True)
     @mock.patch('vsc.accountpage.client.AccountpageClient', autospec=True)
