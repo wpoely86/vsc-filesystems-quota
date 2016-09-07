@@ -37,6 +37,7 @@ import vsc.filesystem.quota.tools as tools
 from vsc.accountpage.wrappers import mkVscAccount, mkVo, mkVscAccountPerson
 from vsc.config.base import VSC_HOME, VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
+from vsc.filesystem.quota.tools import push_vo_quota_to_django
 from vsc.install.testing import TestCase
 
 
@@ -294,7 +295,7 @@ class TestProcessing(TestCase):
 
         store_cache = False
 
-        tools.process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
+        tools.process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_not_called()
         mock_push_quota.assert_called_with(user_map, storage_name, storage.path_templates[storage_name], quota_map, client, False)
@@ -333,7 +334,7 @@ class TestProcessing(TestCase):
 
         store_cache = True
 
-        tools.process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False)
+        tools.process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_called_with("/my_path")
         mock_push_quota.assert_not_called()
@@ -350,8 +351,7 @@ class TestProcessing(TestCase):
 
         storage = mock.MagicMock()
 
-        gpfs = mock.MagicMock()
-        gpfs.list_filesets.return_value = {
+        filesets = {
             filesystem: {
                 fileset: {
                     'path': '/my_path',
@@ -359,6 +359,8 @@ class TestProcessing(TestCase):
                 }
             }
         }
+        gpfs = mock.MagicMock()
+        gpfs.list_filesets.return_value = filesets
 
         client = mock.MagicMock()
 
@@ -369,7 +371,7 @@ class TestProcessing(TestCase):
         tools.process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
 
         mock_os.stat.assert_not_called()
-        mock_push_quota.assert_called_with(storage_name, quota_map, client, False)
+        mock_push_quota.assert_called_with(filesets, filesystem, storage_name, quota_map, client, False)
 
     @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
     @mock.patch('vsc.filesystem.quota.tools.os')
@@ -405,3 +407,22 @@ class TestProcessing(TestCase):
 
         mock_os.stat.assert_called_with("/my_path")
         mock_push_quota.assert_not_called()
+
+    @mock.patch('vsc.config.base.VscStorage', autospec=True)
+    def test_push_vo_quota_to_django(self, mock_storage):
+
+        fileset_name = 'gvo00002'
+        fileset_id = '1'
+        filesystem = 'scratchdelcatty'
+        filesets = {filesystem: {fileset_id: {'filesetName': fileset_name}}}
+        storage_name = 'VSC_SCRATCH_DELCATTY'
+        quota = QuotaFileset(mock_storage, filesystem, fileset_name)
+        quota.update(fileset_name, used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        quota_map = {
+            '1': quota,
+        }
+
+        client = mock.MagicMock()
+
+        push_vo_quota_to_django(filesets, filesystem, storage_name, quota_map, client)
