@@ -40,7 +40,6 @@ import time
 from pwd import getpwuid
 
 from vsc.config.base import VSC, VscStorage
-from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils import fancylogger
 from vsc.utils.cache import FileCache
 from vsc.utils.generaloption import simple_option
@@ -52,7 +51,8 @@ logger = fancylogger.getLogger('show_quota')
 
 DEFAULT_ALLOWED_TIME_THRESHOLD = 60 * 60
 
-def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixes, warning=""):
+
+def quota_pretty_print(storage_name, fileset, quota_information, warning=""):
     """Returns a nice looking string with all the required quota information."""
 
     if quota_information.soft == 0:
@@ -118,7 +118,7 @@ def print_user_quota(opts, storage, user_name, now):
         if now - timestamp > opts.options.threshold:
             warning = "(age of data is %d minutes)" % ((now-timestamp)/60)
         for (fileset, qi) in quota.quota_map.items():
-            pp = quota_pretty_print(storage_name, fileset, qi, opts.options.fileset_prefixes, warning)
+            pp = quota_pretty_print(storage_name, fileset, qi, warning)
             if pp:
                 print pp
 
@@ -157,7 +157,6 @@ def main():
         'storage': ('the VSC filesystems that are checked by this script', 'strlist', 'store', []),
         'threshold': ('allowed the time difference between the cached quota and the time of running', None, 'store',
                       DEFAULT_ALLOWED_TIME_THRESHOLD),
-        'fileset_prefixes': ('the filesets that we allow for showing QuotaUser', 'strlist', 'store', []),
         'vo': ('provide storage details for the VO you belong to', None, 'store_true', False)
     }
     opts = simple_option(options, config_files=['/etc/quota_information.conf'])

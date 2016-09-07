@@ -45,7 +45,6 @@ from vsc.filesystem.gpfs import GpfsOperations
 from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
 from vsc.filesystem.quota.tools import process_user_quota_store_optional, process_fileset_quota_store_optional
 from vsc.filesystem.quota.tools import notify_exceeding_users, notify_exceeding_filesets
-from vsc.ldap.configuration import VscConfiguration
 from vsc.utils import fancylogger
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
