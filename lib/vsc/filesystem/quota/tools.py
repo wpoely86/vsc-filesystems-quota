@@ -312,8 +312,8 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
 
 def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
     """wrapper around the new function to keep the old behaviour intact"""
-    process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, True, dry_run)
-    process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
+    process_fileset_quota_optional(storage, gpfs, storage_name, filesystem, quota_map, client, True, dry_run)
+    process_fileset_quota_optional(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
 
 
 def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False):
