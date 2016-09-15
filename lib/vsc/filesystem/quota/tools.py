@@ -125,18 +125,20 @@ The UGent HPC team
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
     """
     Wrapper around the new function to keep the old behaviour intact.
-
-    The filesystem argument is not used and as such should not be used by callers.
     """
     logging.warning("Deprecated function: process_user_quota")
-    del filesystem
-    process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, False, dry_run)
-    process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, True, dry_run)
+    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run)
+    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run)
 
 
-def process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, store_cache, dry_run=False):
-    """Store the information in the user directories.
+def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False):
     """
+    Store the information in the user directories and in the account page.
+
+    Note that the filesystem argument is not used.
+    """
+    del filesystem
+
     exceeding_users = []
     login_mount_point = storage[storage_name].login_mount_point
     gpfs_mount_point = storage[storage_name].gpfs_mount_point
@@ -318,6 +320,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
 
 def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
     """wrapper around the new function to keep the old behaviour intact"""
+    logging.warning("Deprecated function: process_fileset_quota")
     process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, True, dry_run)
     process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
 
