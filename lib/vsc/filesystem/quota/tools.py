@@ -122,8 +122,13 @@ The UGent HPC team
 """)
 
 
-def process_user_quota(storage, gpfs, storage_name, quota_map, user_map, client, dry_run=False):
-    """wrapper around the new function to keep the old behaviour intact"""
+def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
+    """
+    Wrapper around the new function to keep the old behaviour intact.
+
+    The filesystem argument is not used and as such should not be used by callers.
+    """
+    logging.warning("Deprecated function: process_user_quota")
     process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, False, dry_run)
     process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, True, dry_run)
 
