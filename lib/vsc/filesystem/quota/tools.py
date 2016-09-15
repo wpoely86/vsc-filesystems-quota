@@ -129,6 +129,7 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     The filesystem argument is not used and as such should not be used by callers.
     """
     logging.warning("Deprecated function: process_user_quota")
+    del filesystem
     process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, False, dry_run)
     process_user_quota_store_optional(storage, gpfs, storage_name, quota_map, user_map, client, True, dry_run)
 
