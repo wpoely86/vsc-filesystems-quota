@@ -40,20 +40,17 @@ import time
 from pwd import getpwuid
 
 from vsc.config.base import VSC, VscStorage
-from vsc.utils import fancylogger
 from vsc.utils.cache import FileCache
 from vsc.utils.generaloption import simple_option
 
-
-fancylogger.logToScreen(True)
-fancylogger.setLogLevelWarning()
-logger = fancylogger.getLogger('show_quota')
-
 DEFAULT_ALLOWED_TIME_THRESHOLD = 60 * 60
 
+logger = None
 
-def quota_pretty_print(storage_name, fileset, quota_information, warning=""):
+
+def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixes, warning=""):
     """Returns a nice looking string with all the required quota information."""
+    del fileset_prefixes
 
     if quota_information.soft == 0:
         return None  # we should not inform the users of filesets where there is no quota limit set
@@ -118,7 +115,7 @@ def print_user_quota(opts, storage, user_name, now):
         if now - timestamp > opts.options.threshold:
             warning = "(age of data is %d minutes)" % ((now-timestamp)/60)
         for (fileset, qi) in quota.quota_map.items():
-            pp = quota_pretty_print(storage_name, fileset, qi, warning)
+            pp = quota_pretty_print(storage_name, fileset, qi, None, warning)
             if pp:
                 print pp
 
@@ -160,6 +157,8 @@ def main():
         'vo': ('provide storage details for the VO you belong to', None, 'store_true', False)
     }
     opts = simple_option(options, config_files=['/etc/quota_information.conf'])
+    global logger
+    logger = opts.log
 
     storage = VscStorage()
     vsc = VSC(False)
