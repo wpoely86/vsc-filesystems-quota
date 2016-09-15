@@ -333,7 +333,7 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
     exceeding_filesets = []
 
     if not store_cache:
-        push_vo_quota_to_django(filesets, filesystem, storage_name, quota_map, client, dry_run)
+        push_vo_quota_to_django(storage_name, quota_map, client, dry_run, filesets, filesystem)
 
     logger.debug("filesets = %s", filesets)
 
@@ -413,7 +413,7 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
         push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
 
 
-def push_vo_quota_to_django(filesets, filesystem, storage_name, quota_map, client, dry_run=False):
+def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, filesets=None, filesystem=None):
     """
     Upload the VO usage information to the account page, so it can be displayed in the web interface.
     """
