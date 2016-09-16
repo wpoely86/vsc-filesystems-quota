@@ -45,18 +45,11 @@ from vsc.filesystem.gpfs import GpfsOperations
 from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
 from vsc.filesystem.quota.tools import process_user_quota_store_optional, process_fileset_quota_store_optional
 from vsc.filesystem.quota.tools import notify_exceeding_users, notify_exceeding_filesets
-from vsc.ldap.configuration import VscConfiguration
-from vsc.utils import fancylogger
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
 # Constants
 NAGIOS_CHECK_INTERVAL_THRESHOLD = 60 * 60  # one hour
-
-# log setup
-logger = fancylogger.getLogger(__name__)
-fancylogger.logToScreen(True)
-fancylogger.setLogLevelInfo()
 
 QUOTA_USERS_WARNING = 20
 QUOTA_USERS_CRITICAL = 40
@@ -74,6 +67,7 @@ def main():
         'access_token': ('OAuth2 token to access the account page REST API', None, 'store', None),
     }
     opts = ExtendedSimpleOption(options)
+    logger = opts.log
 
     try:
         client = AccountpageClient(token=opts.options.access_token)
@@ -121,7 +115,7 @@ def main():
                 storage, gpfs, storage_name, filesystem, quota_storage_map['FILESET'],
                 client, opts.options.write_cache, opts.options.dry_run)
             exceeding_users[storage_name] = process_user_quota_store_optional(
-                storage, gpfs, storage_name, filesystem, quota_storage_map['USR'],
+                storage, gpfs, storage_name, None, quota_storage_map['USR'],
                 user_id_map, client, opts.options.write_cache, opts.options.dry_run)
 
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL

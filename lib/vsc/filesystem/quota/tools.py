@@ -123,14 +123,22 @@ The UGent HPC team
 
 
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
-    """wrapper around the new function to keep the old behaviour intact"""
+    """
+    Wrapper around the new function to keep the old behaviour intact.
+    """
+    logging.warning("Deprecated function: process_user_quota")
     process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run)
     process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run)
 
 
 def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False):
-    """Store the information in the user directories.
     """
+    Store the information in the user directories and in the account page.
+
+    Note that the filesystem argument is not used.
+    """
+    del filesystem
+
     exceeding_users = []
     login_mount_point = storage[storage_name].login_mount_point
     gpfs_mount_point = storage[storage_name].gpfs_mount_point
@@ -312,8 +320,9 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
 
 def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
     """wrapper around the new function to keep the old behaviour intact"""
-    process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, True, dry_run)
-    process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
+    logging.warning("Deprecated function: process_fileset_quota")
+    process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, True, dry_run)
+    process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
 
 
 def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False):
@@ -324,7 +333,7 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
     exceeding_filesets = []
 
     if not store_cache:
-        push_vo_quota_to_django(storage_name, quota_map, client, dry_run)
+        push_vo_quota_to_django(storage_name, quota_map, client, dry_run, filesets, filesystem)
 
     logger.debug("filesets = %s", filesets)
 
@@ -363,7 +372,7 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
 
 def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run=False):
     """
-    Upload the quota information to the django database, so it can be displayed for the users in the web application.
+    Upload the quota information to the account page, so it can be displayed for the users in the web application.
     """
 
     payload = []
@@ -404,8 +413,45 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
         push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
 
 
-def push_vo_quota_to_django(storage_name, quota_map, client, payload, dry_run=False):
-    pass
+def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, filesets=None, filesystem=None):
+    """
+    Upload the VO usage information to the account page, so it can be displayed in the web interface.
+    """
+    payload = []
+    count = 0
+
+    logger.info("Logging VO quota to account page")
+    logger.debug("Considering the following quota items for pushing: %s", quota_map)
+
+    for (fileset, quota) in quota_map.items():
+        fileset_name = filesets[filesystem][fileset]['filesetName']
+        logger.debug("Fileset %s quota: %s", fileset_name, quota)
+
+        if not fileset_name.startswith('gvo00002'):
+            continue
+
+        for (fileset_, quota_) in quota.quota_map.items():
+
+            params = {
+                "vo": fileset_name,
+                "fileset": fileset_,
+                "used": quota_.used,
+                "soft": quota_.soft,
+                "hard": quota_.hard,
+                "doubt": quota_.doubt,
+                "expired": quota_.expired[0],
+                "remaining": quota_.expired[1] or 0,  # seconds
+            }
+            payload.append(params)
+            count += 1
+
+            if count > 100:
+                push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload, dry_run)
+                count = 0
+                payload = []
+
+    if payload:
+        push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload, dry_run)
 
 
 def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
@@ -437,7 +483,7 @@ def sanitize_quota_information(fileset_name, quota):
         - gvo*
         - project
     """
-    for (fileset, value) in quota.quota_map.items():
+    for fileset in quota.quota_map.keys():
         if not fileset.startswith('vsc') and not fileset.startswith('gvo') and not fileset.startswith(fileset_name):
             quota.quota_map.pop(fileset)
 

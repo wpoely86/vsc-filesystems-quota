@@ -51,6 +51,7 @@ fancylogger.setLogLevelInfo()
 
 QUOTA_STORE_LOG_CRITICAL = 1
 
+
 def main():
     """The main."""
 
@@ -62,10 +63,6 @@ def main():
     }
 
     opts = ExtendedSimpleOption(options)
-
-    filesystem_error = 0
-    filesystem_ok = 0
-    error = False
 
     stats = {}
 
@@ -86,10 +83,10 @@ def main():
                 zipfile.close()
                 stats["%s_quota_log" % (key,)] = 0
                 logger.info("Stored quota information for FS %s" % (key))
-            except Exception, err:
+            except Exception:
                 stats["%s_quota_log" % (key,)] = 1
                 logger.exception("Failed storing quota information for FS %s" % (key))
-    except Exception, err:
+    except Exception:
         logger.exception("Failure obtaining GPFS quota")
         opts.critical("Failure to obtain GPFS quota information")
         sys.exit(NAGIOS_EXIT_CRITICAL)
