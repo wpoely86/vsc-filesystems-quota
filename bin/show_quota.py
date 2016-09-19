@@ -67,13 +67,13 @@ def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixe
     s = "%s: used %.3g %s (%d%%) quota %.3g %s (%.3g %s hard limit) %s" % (
         storage_name_s,
         # quota sizes are in 1k blocks
-        format_sizes(quota_information.used*1024)[0],
-        format_sizes(quota_information.used*1024)[1],
+        format_sizes(quota_information.used * 1024)[0],
+        format_sizes(quota_information.used * 1024)[1],
         quota_information.used * 100 / quota_information.soft,
-        format_sizes(quota_information.soft*1024)[0],
-        format_sizes(quota_information.hard*1024)[1],
-        format_sizes(quota_information.hard*1024)[0],
-        format_sizes(quota_information.hard*1024)[1],
+        format_sizes(quota_information.soft * 1024)[0],
+        format_sizes(quota_information.hard * 1024)[1],
+        format_sizes(quota_information.hard * 1024)[0],
+        format_sizes(quota_information.hard * 1024)[1],
         warning)
 
     (exceeds, grace) = quota_information.expired
@@ -87,7 +87,7 @@ def format_sizes(quotasize):
     """Returns a tuple of the size and the appropiate unit so that size < 1024"""
     size_units = ["B", "kiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
     for n in range(0, len(size_units)):
-        val = quotasize / 1024.0**n
+        val = quotasize / 1024.0 ** n
         if val < 1024:
             return (val, size_units[n])
 
@@ -113,7 +113,7 @@ def print_user_quota(opts, storage, user_name, now):
 
         warning = ""
         if now - timestamp > opts.options.threshold:
-            warning = "(age of data is %d minutes)" % ((now-timestamp)/60)
+            warning = "(age of data is %d minutes)" % ((now - timestamp) / 60)
         for (fileset, qi) in quota.quota_map.items():
             pp = quota_pretty_print(storage_name, fileset, qi, None, warning)
             if pp:
@@ -141,9 +141,9 @@ def print_vo_quota(opts, storage, vos, now):
 
         warning = ""
         if now - timestamp > opts.options.threshold:
-            warning = "(age of data is %d minutes)" % ((now-timestamp)/60)
+            warning = "(age of data is %d minutes)" % ((now - timestamp) / 60)
         for (fileset, qi) in quota.quota_map.items():
-            pp = quota_pretty_print(storage_name, fileset, qi, opts.options.fileset_prefixes, warning)
+            pp = quota_pretty_print(storage_name, fileset, qi, None, warning)
             if pp:
                 print pp
 
@@ -165,9 +165,9 @@ def main():
     user_name = getpwuid(os.getuid())[0]
 
     vos = [g.gr_name for g in grp.getgrall()
-           if user_name in g.gr_mem
-           and g.gr_name.startswith('gvo')
-           and g.gr_name != vsc.default_vo]  # default VO has no quota associated with it
+           if user_name in g.gr_mem and
+           g.gr_name.startswith('gvo') and
+           g.gr_name != vsc.default_vo]  # default VO has no quota associated with it
 
     opts.options.vo = opts.options.vo and vos
 
