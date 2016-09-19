@@ -427,7 +427,7 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
         fileset_name = filesets[filesystem][fileset]['filesetName']
         logger.debug("Fileset %s quota: %s", fileset_name, quota)
 
-        if not fileset_name.startswith('gvo00002'):
+        if not fileset_name.startswith('gvo'):
             continue
 
         for (fileset_, quota_) in quota.quota_map.items():
