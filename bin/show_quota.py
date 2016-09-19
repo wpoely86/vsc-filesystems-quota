@@ -143,7 +143,7 @@ def print_vo_quota(opts, storage, vos, now):
         if now - timestamp > opts.options.threshold:
             warning = "(age of data is %d minutes)" % ((now - timestamp) / 60)
         for (fileset, qi) in quota.quota_map.items():
-            pp = quota_pretty_print(storage_name, fileset, qi, opts.options.fileset_prefixes, warning)
+            pp = quota_pretty_print(storage_name, fileset, qi, None, warning)
             if pp:
                 print pp
 
