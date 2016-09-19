@@ -71,7 +71,7 @@ def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixe
         format_sizes(quota_information.used * 1024)[1],
         quota_information.used * 100 / quota_information.soft,
         format_sizes(quota_information.soft * 1024)[0],
-        format_sizes(quota_information.hard * 1024)[1],
+        format_sizes(quota_information.soft * 1024)[1],
         format_sizes(quota_information.hard * 1024)[0],
         format_sizes(quota_information.hard * 1024)[1],
         warning)
