@@ -26,6 +26,7 @@ class TestProcessInodesInformation(TestCase):
         """
         Add example cases.
         """
+        super(TestProcessInodesInformation, self).setUp()
 
         # names reflect the number of used inodes (max is set by default at 100, so this effectively is a percentage.
         self.names = (10, 95)

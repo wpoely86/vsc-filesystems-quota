@@ -38,20 +38,13 @@ import time
 
 
 from vsc.filesystem.gpfs import GpfsOperations
-from vsc.utils import fancylogger
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
 # Constants
 NAGIOS_CHECK_INTERVAL_THRESHOLD = (6 * 60 + 5) * 60  # 365 minutes -- little over 6 hours.
 INODE_LOG_ZIP_PATH = '/var/log/quota/inode-zips'
-
-logger = fancylogger.getLogger(__name__)
-fancylogger.logToScreen(True)
-fancylogger.setLogLevelInfo()
-
 INODE_STORE_LOG_CRITICAL = 1
-
 
 from vsc.filesystem.quota.tools import process_inodes_information, mail_admins
 
@@ -67,6 +60,7 @@ def main():
     }
 
     opts = ExtendedSimpleOption(options)
+    logger = opts.log
 
     stats = {}
 
