@@ -56,7 +56,7 @@ def quota_pretty_print(storage_name, fileset, quota_information, fileset_prefixe
         return None  # we should not inform the users of filesets where there is no quota limit set
 
     if fileset.startswith('gvo'):
-        storage_name_s = storage_name + "_VO"
+        storage_name_s = storage_name + "_VO [%s]" % fileset
     elif fileset.startswith('vsc4'):
         storage_name_s = storage_name
     elif fileset.startswith('gent'):
