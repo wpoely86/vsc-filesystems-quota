@@ -491,7 +491,8 @@ def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
                 return
             cl.size.put(body=payload)  # if all is well, there's nothing returned except (200, empty string)
         except Exception:
-            logging.raiseException("Could not store quota info in account web app")
+            logging.error("Could not store quota info in account web app")
+            raise
 
 
 def sanitize_quota_information(fileset_name, quota):
