@@ -509,7 +509,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
                                       mail_from="hpc@ugent.be",
                                       reply_to="hpc@ugent.be",
                                       mail_subject="Quota on %s exceeded" % (storage_name,),
-                                      message=message)
+                                      message=message.encode('utf-8'))
                 except VscMailError, err:
                     logger.error("Unable to send mail to %s: %s", user.account.email, err)
                 else:
@@ -537,13 +537,17 @@ def notify(storage_name, item, quota, client, dry_run=False):
         if dry_run:
             logger.info("Dry-run, would send the following message: %s" % (message,))
         else:
-            mail.sendTextMail(mail_to=user.account.email,
-                              mail_from="hpc@ugent.be",
-                              reply_to="hpc@ugent.be",
-                              mail_subject="Quota on %s exceeded" % (storage_name,),
-                              message=message)
-        logger.info("notification: recipient %s storage %s quota_string %s" %
-                    (user.account.vsc_id, storage_name, "%s" % (quota,)))
+            try:
+                mail.sendTextMail(mail_to=user.account.email,
+                                  mail_from="hpc@ugent.be",
+                                  reply_to="hpc@ugent.be",
+                                  mail_subject="Quota on %s exceeded" % (storage_name,),
+                                  message=message.encode('utf-8'))
+            except VscMailError, err:
+                logger.error("Unable to send mail to %s: %s", user.account.email, err)
+            else:
+                logger.info("notification: recipient %s storage %s quota_string %s" %
+                            (user.account.vsc_id, storage_name, "%s" % (quota,)))
     else:
         logger.error("Should send a mail, but cannot process item %s" % (item,))
 
