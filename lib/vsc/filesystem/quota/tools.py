@@ -564,9 +564,9 @@ def notify(storage_name, item, quota, client, dry_run=False):
                                   mail_subject="Quota on %s exceeded" % (storage_name,),
                                   message=message.encode('utf-8'))
             except VscMailError, err:
-                logger.error("Unable to send mail to %s: %s", user.account.email, err)
+                logging.error("Unable to send mail to %s: %s", user.account.email, err)
             else:
-                logger.info("notification: recipient %s storage %s quota_string %s" %
+                logging.info("notification: recipient %s storage %s quota_string %s" %
                             (user.account.vsc_id, storage_name, "%s" % (quota,)))
     else:
         logging.error("Should send a mail, but cannot process item %s" % (item,))
