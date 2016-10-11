@@ -74,7 +74,7 @@ class TestProcessInodesInformation(TestCase):
         """
         critical = process_inodes_information(self.filesets, self.usage, threshold=0.9)
 
-        self.assertDictEqual(
+        self.assertEqual(
             critical,
             { str(self.names[1]): InodeCritical(used=self.usage[self.names[1]][0].filesUsage,
                                                 allocated=self.filesets[self.names[1]]['allocInodes'],
