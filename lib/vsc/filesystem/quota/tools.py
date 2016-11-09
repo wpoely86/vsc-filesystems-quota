@@ -215,7 +215,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
             if dry_run:
                 logging.info("Dry run: would update cache for %s at %s with %s",
                              storage_name, new_path, "%s", quota)
-                logging.info("Dry run: would chmod 640 %s", filename)
+                logging.info("Dry run: would chmod 0o640 %s", filename)
                 logging.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
             else:
                 cache = FileCache(filename, False)
@@ -224,7 +224,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
                 cache.close()
 
                 gpfs.ignorerealpathmismatch = True
-                gpfs.chmod(0640, filename)
+                gpfs.chmod(0o640, filename)
                 gpfs.chown(path_stat.st_uid, path_stat.st_uid, filename)
                 gpfs.ignorerealpathmismatch = False
 
@@ -381,7 +381,7 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
             cache.update(key="storage_name", data=storage_name, threshold=0)
             cache.close()
 
-            gpfs.chmod(0640, filename)
+            gpfs.chmod(0o640, filename)
             gpfs.chown(path_stat.st_uid, path_stat.st_gid, filename)
 
         logging.info("Stored fileset %s [%s] quota for storage %s at %s", fileset, fileset_name, storage, filename)
