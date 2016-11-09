@@ -33,15 +33,16 @@ import logging
 import os
 import pwd
 import re
+import socket
 import time
 
+from collections import namedtuple
 from string import Template
 from urllib2 import HTTPError
 
 from vsc.administration.user import VscTier2AccountpageUser
 from vsc.administration.vo import VscTier2AccountpageVo
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
-from vsc.utils import fancylogger
 from vsc.utils.cache import FileCache
 from vsc.utils.mail import VscMail, VscMailError
 
@@ -52,10 +53,24 @@ GPFS_NOGRACE_REGEX = re.compile(r"none", re.I)
 QUOTA_USER_KIND = 'user'
 QUOTA_VO_KIND = 'vo'
 
-# log setup
-logger = fancylogger.getLogger(__name__)
-fancylogger.logToScreen(True)
-fancylogger.setLogLevelInfo()
+
+class QuotaException(Exception):
+    pass
+
+InodeCritical = namedtuple("InodeCritical", ['used', 'allocated', 'maxinodes'])
+
+
+CRITICAL_INODE_COUNT_MESSAGE = """
+Dear HPC admins,
+
+The following filesets will be running out of inodes soon (or may already have run out).
+
+%(fileset_info)s
+
+Kind regards,
+Your friendly inode-watching script
+"""
+
 
 QUOTA_NOTIFICATION_CACHE_THRESHOLD = 7 * 86400
 
@@ -161,18 +176,18 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
             try:
                 user = VscTier2AccountpageUser(user_name, rest_client=client)
             except HTTPError:
-                logger.warning("Cannot find an account for user %s", user_name)
+                logging.warning("Cannot find an account for user %s", user_name)
                 continue
             except AttributeError:
-                logger.warning("Cannot store quota infor for account %s", user_name)
+                logging.warning("Cannot store quota infor for account %s", user_name)
                 continue
 
-            logger.debug("Checking quota for user %s with ID %s", user_name, user_id)
-            logger.debug("User %s quota: %s", user, quota)
+            logging.debug("Checking quota for user %s with ID %s", user_name, user_id)
+            logging.debug("User %s quota: %s", user, quota)
 
             path = user._get_path(storage_name)
 
-            logger.debug("path for storing quota info would be %s", path)
+            logging.debug("path for storing quota info would be %s", path)
 
             # FIXME: We need some better way to address this
             # Right now, we replace the nfs mount prefix which the symlink points to
@@ -180,15 +195,15 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
             # symlink problem once we take new default scratch into production
             if gpfs.is_symlink(path):
                 target = os.path.realpath(path)
-                logger.debug("path is a symlink, target is %s", target)
-                logger.debug("login_mount_point for %s is %s", storage_name, login_mount_point)
+                logging.debug("path is a symlink, target is %s", target)
+                logging.debug("login_mount_point for %s is %s", storage_name, login_mount_point)
                 if target.startswith(login_mount_point):
                     new_path = target.replace(login_mount_point, gpfs_mount_point, 1)
-                    logger.info("Found a symlinked path %s to the nfs mount point %s. Replaced with %s" %
-                                (path, login_mount_point, gpfs_mount_point))
+                    logging.info("Found a symlinked path %s to the nfs mount point %s. Replaced with %s",
+                                 path, login_mount_point, gpfs_mount_point)
                 else:
-                    logger.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly",
-                                   user_name, storage_name)
+                    logging.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly",
+                                    user_name, storage_name)
             else:
                 new_path = path
 
@@ -198,10 +213,10 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
             sanitize_quota_information(path_template['user'][0], quota)
 
             if dry_run:
-                logger.info("Dry run: would update cache for %s at %s with %s",
-                            storage_name, new_path, "%s", quota)
-                logger.info("Dry run: would chmod 640 %s", filename)
-                logger.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
+                logging.info("Dry run: would update cache for %s at %s with %s",
+                             storage_name, new_path, "%s", quota)
+                logging.info("Dry run: would chmod 0o640 %s", filename)
+                logging.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
             else:
                 cache = FileCache(filename, False)
                 cache.update(key="quota", data=quota, threshold=0)
@@ -209,11 +224,11 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
                 cache.close()
 
                 gpfs.ignorerealpathmismatch = True
-                gpfs.chmod(0640, filename)
+                gpfs.chmod(0o640, filename)
                 gpfs.chown(path_stat.st_uid, path_stat.st_uid, filename)
                 gpfs.ignorerealpathmismatch = False
 
-            logger.info("Stored user %s quota for storage %s at %s" % (user_name, storage_name, filename))
+            logging.info("Stored user %s quota for storage %s at %s" % (user_name, storage_name, filename))
 
     return exceeding_users
 
@@ -237,7 +252,7 @@ def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, replication_fa
 
     timestamp = int(time.time())
 
-    logger.info("ordering USR quota for storage %s" % (storage))
+    logging.info("ordering USR quota for storage %s", storage)
     # Iterate over a list of named tuples -- GpfsQuota
     for (user, gpfs_quota) in quota_map['USR'].items():
         user_quota = user_map.get(user, QuotaUser(storage, filesystem, user))
@@ -250,7 +265,7 @@ def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, replication_fa
             replication_factor
         )
 
-    logger.info("ordering FILESET quota for storage %s" % (storage))
+    logging.info("ordering FILESET quota for storage %s", storage)
     # Iterate over a list of named tuples -- GpfsQuota
     for (fileset, gpfs_quota) in quota_map['FILESET'].items():
         fileset_quota = fs_map.get(fileset, QuotaFileset(storage, filesystem, fileset))
@@ -279,7 +294,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
     """
 
     for quota in gpfs_quotas:
-        logger.debug("gpfs_quota = %s" % (str(quota)))
+        logging.debug("gpfs_quota = %s" % (str(quota)))
         grace = GPFS_GRACE_REGEX.search(quota.blockGrace)
         nograce = GPFS_NOGRACE_REGEX.search(quota.blockGrace)
 
@@ -296,17 +311,21 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
             elif grace.get('expired', None):
                 expired = (True, 0)
             else:
-                logger.raiseException("Unprocessed grace groupdict %s (from string %s)." %
-                                      (grace, quota.blockGrace))
+                logging.error("Unprocessed grace groupdict %s (from string %s).",
+                              grace, quota.blockGrace)
+                raise QuotaException("Cannot process grace time string")
         else:
-            logger.raiseException("Unknown grace string %s." % quota.blockGrace)
+            logging.error("Unknown grace string %s.", quota.blockGrace)
+            raise QuotaException("Cannot process grace information (%s)" % quota.blockGrace)
 
         if quota.filesetname:
             fileset_name = filesets[filesystem][quota.filesetname]['filesetName']
         else:
             fileset_name = None
-        logger.debug("The fileset name is %s (filesystem %s); blockgrace %s to expired %s" %
-                     (fileset_name, filesystem, quota.blockGrace, expired))
+
+        logging.debug("The fileset name is %s (filesystem %s); blockgrace %s to expired %s",
+                      fileset_name, filesystem, quota.blockGrace, expired)
+
         entity.update(fileset_name,
                       int(quota.blockUsage) // replication_factor,
                       int(quota.blockQuota) // replication_factor,
@@ -335,11 +354,11 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
     if not store_cache:
         push_vo_quota_to_django(storage_name, quota_map, client, dry_run, filesets, filesystem)
 
-    logger.debug("filesets = %s", filesets)
+    logging.debug("filesets = %s", filesets)
 
     for (fileset, quota) in quota_map.items():
         fileset_name = filesets[filesystem][fileset]['filesetName']
-        logger.debug("Fileset %s quota: %s", fileset_name, quota)
+        logging.debug("Fileset %s quota: %s", fileset_name, quota)
 
         if quota.exceeds():
             exceeding_filesets.append((fileset_name, quota))
@@ -352,9 +371,9 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
         path_stat = os.stat(path)
 
         if dry_run:
-            logger.info("Dry run: would update cache for %s at %s with %s", storage_name, path, "%s" % (quota,))
-            logger.info("Dry run: would chmod 640 %s", filename)
-            logger.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
+            logging.info("Dry run: would update cache for %s at %s with %s", storage_name, path, "%s" % (quota,))
+            logging.info("Dry run: would chmod 640 %s", filename)
+            logging.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
         else:
             # TODO: This should somehow be some atomic operation.
             cache = FileCache(filename, False)
@@ -362,10 +381,10 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
             cache.update(key="storage_name", data=storage_name, threshold=0)
             cache.close()
 
-            gpfs.chmod(0640, filename)
+            gpfs.chmod(0o640, filename)
             gpfs.chown(path_stat.st_uid, path_stat.st_gid, filename)
 
-        logger.info("Stored fileset %s [%s] quota for storage %s at %s", fileset, fileset_name, storage, filename)
+        logging.info("Stored fileset %s [%s] quota for storage %s at %s", fileset, fileset_name, storage, filename)
 
     return exceeding_filesets
 
@@ -378,8 +397,8 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
     payload = []
     count = 0
 
-    logger.info("Logging user quota to account page")
-    logger.debug("Considering the following quota items for pushing: %s", quota_map)
+    logging.info("Logging user quota to account page")
+    logging.debug("Considering the following quota items for pushing: %s", quota_map)
 
     for (user_id, quota) in quota_map.items():
 
@@ -420,12 +439,12 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
     payload = []
     count = 0
 
-    logger.info("Logging VO quota to account page")
-    logger.debug("Considering the following quota items for pushing: %s", quota_map)
+    logging.info("Logging VO quota to account page")
+    logging.debug("Considering the following quota items for pushing: %s", quota_map)
 
     for (fileset, quota) in quota_map.items():
         fileset_name = filesets[filesystem][fileset]['filesetName']
-        logger.debug("Fileset %s quota: %s", fileset_name, quota)
+        logging.debug("Fileset %s quota: %s", fileset_name, quota)
 
         if not fileset_name.startswith('gvo'):
             continue
@@ -457,22 +476,23 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
 def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
 
     if dry_run:
-        logger.info("Would push payload to account web app: %s" % (payload,))
+        logging.info("Would push payload to account web app: %s" % (payload,))
     else:
         try:
             cl = client.usage.storage[storage_name]
             if kind == QUOTA_USER_KIND:
-                logger.debug("Pushing user payload to account web app: %s", payload)
+                logging.debug("Pushing user payload to account web app: %s", payload)
                 cl = cl.user
             elif kind == QUOTA_VO_KIND:
-                logger.debug("Pushing vo payload to account web app: %s", payload)
+                logging.debug("Pushing vo payload to account web app: %s", payload)
                 cl = cl.vo
             else:
-                logger.error("Unknown quota kind, not pushing any quota to the account page")
+                logging.error("Unknown quota kind, not pushing any quota to the account page")
                 return
             cl.size.put(body=payload)  # if all is well, there's nothing returned except (200, empty string)
         except Exception:
-            logger.raiseException("Could not store quota info in account web app")
+            logging.error("Could not store quota info in account web app")
+            raise
 
 
 def sanitize_quota_information(fileset_name, quota):
@@ -502,7 +522,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
                                                                            quota_info="%s" % (quota,),
                                                                            time=time.ctime())
             if dry_run:
-                logger.info("Dry-run, would send the following message: %s" % (message,))
+                logging.info("Dry-run, would send the following message: %s" % (message,))
             else:
                 try:
                     mail.sendTextMail(mail_to=user.account.email,
@@ -511,9 +531,9 @@ def notify(storage_name, item, quota, client, dry_run=False):
                                       mail_subject="Quota on %s exceeded" % (storage_name,),
                                       message=message.encode('utf-8'))
                 except VscMailError, err:
-                    logger.error("Unable to send mail to %s: %s", user.account.email, err)
+                    logging.error("Unable to send mail to %s: %s", user.account.email, err)
                 else:
-                    logger.info("notification: recipient %s storage %s quota_string %s" %
+                    logging.info("notification: recipient %s storage %s quota_string %s" %
                                 (user.account.vsc_id, storage_name, "%s" % (quota,)))
 
     elif item.startswith("gpr"):  # projects
@@ -535,7 +555,7 @@ def notify(storage_name, item, quota, client, dry_run=False):
                                                                     quota_info="%s" % (quota,),
                                                                     time=time.ctime())
         if dry_run:
-            logger.info("Dry-run, would send the following message: %s" % (message,))
+            logging.info("Dry-run, would send the following message: %s" % (message,))
         else:
             try:
                 mail.sendTextMail(mail_to=user.account.email,
@@ -544,12 +564,12 @@ def notify(storage_name, item, quota, client, dry_run=False):
                                   mail_subject="Quota on %s exceeded" % (storage_name,),
                                   message=message.encode('utf-8'))
             except VscMailError, err:
-                logger.error("Unable to send mail to %s: %s", user.account.email, err)
+                logging.error("Unable to send mail to %s: %s", user.account.email, err)
             else:
-                logger.info("notification: recipient %s storage %s quota_string %s" %
+                logging.info("notification: recipient %s storage %s quota_string %s" %
                             (user.account.vsc_id, storage_name, "%s" % (quota,)))
     else:
-        logger.error("Should send a mail, but cannot process item %s" % (item,))
+        logging.error("Should send a mail, but cannot process item %s" % (item,))
 
 
 
@@ -608,3 +628,53 @@ def map_uids_to_names():
     for u in ul:
         d[u[2]] = u[0]
     return d
+
+
+def process_inodes_information(filesets, quota, threshold=0.9):
+    """
+    Determines which filesets have reached a critical inode limit.
+
+    For this it uses the inode quota information passed in the quota argument and compares this with the maximum number
+    of inodes that can be allocated for the given fileset. The default threshold is placed at 90%.
+
+    @returns: dict with (filesetname, InodeCritical) key-value pairs
+    """
+    critical_filesets = dict()
+
+    for (fs_key, fs_info) in filesets.items():
+        allocated = int(fs_info['allocInodes'])
+        maxinodes = int(fs_info['maxInodes'])
+        used = int(quota[fs_key][0].filesUsage)
+
+        if used > threshold * maxinodes:
+            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated, maxinodes=maxinodes)
+
+    return critical_filesets
+
+
+def mail_admins(critical_filesets, dry_run=True):
+    """Send email to the HPC admin about the inodes running out soonish."""
+    mail = VscMail(mail_host="smtp.ugent.be")
+
+    message = CRITICAL_INODE_COUNT_MESSAGE
+    fileset_info = []
+    for (fs_name, fs_info) in critical_filesets.items():
+        for (fileset_name, inode_info) in fs_info.items():
+            fileset_info.append("%s - %s: used %d (%d%%) of max %d [allocated: %d]" %
+                                (fs_name,
+                                 fileset_name,
+                                 inode_info.used,
+                                 int(inode_info.used * 100 / inode_info.maxinodes),
+                                 inode_info.maxinodes,
+                                 inode_info.allocated))
+
+    message = message % ({'fileset_info': "\n".join(fileset_info)})
+
+    if dry_run:
+        logging.info("Would have sent this message: %s" % (message,))
+    else:
+        mail.sendTextMail(mail_to="hpc-admin@lists.ugent.be",
+                          mail_from="hpc-admin@lists.ugent.be",
+                          reply_to="hpc-admin@lists.ugent.be",
+                          mail_subject="Inode space(s) running out on %s" % (socket.gethostname()),
+                          message=message)

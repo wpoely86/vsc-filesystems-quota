@@ -33,85 +33,20 @@ in a zip file, named by date and filesystem.
 import gzip
 import json
 import os
-import socket
 import sys
 import time
 
-from collections import namedtuple
 
 from vsc.filesystem.gpfs import GpfsOperations
-from vsc.utils import fancylogger
-from vsc.utils.mail import VscMail
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
 # Constants
 NAGIOS_CHECK_INTERVAL_THRESHOLD = (6 * 60 + 5) * 60  # 365 minutes -- little over 6 hours.
 INODE_LOG_ZIP_PATH = '/var/log/quota/inode-zips'
-
-logger = fancylogger.getLogger(__name__)
-fancylogger.logToScreen(True)
-fancylogger.setLogLevelInfo()
-
 INODE_STORE_LOG_CRITICAL = 1
 
-
-InodeCritical = namedtuple('InodeCritical', 'used, allocated, maxinodes')
-
-
-def process_inodes_information(filesets, quota):
-    """
-    Determines which filesets have reached a critical inode limit.
-
-    @returns: dict with (filesetname, InodeCritical) key-value pairs
-    """
-    critical_filesets = dict()
-
-    for (fs_key, fs_info) in filesets.items():
-        allocated = int(fs_info['allocInodes'])
-        maxinodes = int(fs_info['maxInodes'])
-        used = int(quota[fs_key][0].filesUsage)
-
-        if used > 0.9 * maxinodes:
-            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated, maxinodes=maxinodes)
-
-    return critical_filesets
-
-
-def mail_admins(critical_filesets, dry_run):
-    """Send email to the HPC admin about the inodes running out soonish."""
-    mail = VscMail(mail_host="smtp.ugent.be")
-
-    message = """
-Dear HPC admins,
-
-The following filesets will be running out of inodes soon (or may already have run out).
-
-%(fileset_info)s
-
-Kind regards,
-Your friendly inode-watching script
-"""
-    fileset_info = []
-    for (fs_name, fs_info) in critical_filesets.items():
-        for (fileset_name, inode_info) in fs_info.items():
-            fileset_info.append("%s - %s: used %d (%d%%) of max %d [allocated: %d]" % (fs_name,
-                                                                 fileset_name,
-                                                                 inode_info.used,
-                                                                 int(inode_info.used * 100 / inode_info.maxinodes),
-                                                                 inode_info.maxinodes,
-                                                                 inode_info.allocated))
-
-    message = message % ({'fileset_info': "\n".join(fileset_info)})
-
-    if dry_run:
-        logger.info("Would have sent this message: %s" % (message,))
-    else:
-        mail.sendTextMail(mail_to="hpc-admin@lists.ugent.be",
-                          mail_from="hpc-admin@lists.ugent.be",
-                          reply_to="hpc-admin@lists.ugent.be",
-                          mail_subject="Inode space(s) running out on %s" % (socket.gethostname()),
-                          message=message)
+from vsc.filesystem.quota.tools import process_inodes_information, mail_admins
 
 
 def main():
@@ -125,6 +60,7 @@ def main():
     }
 
     opts = ExtendedSimpleOption(options)
+    logger = opts.log
 
     stats = {}
 
@@ -149,7 +85,7 @@ def main():
                 stats["%s_inodes_log" % (filesystem,)] = 0
                 logger.info("Stored inodes information for FS %s" % (filesystem))
 
-                cfs = process_inodes_information(filesets[filesystem], quota[filesystem]['FILESET'])
+                cfs = process_inodes_information(filesets[filesystem], quota[filesystem]['FILESET'], threshold=0.9)
                 logger.info("Processed inodes information for filesystem %s" % (filesystem,))
                 if cfs:
                     critical_filesets[filesystem] = cfs
