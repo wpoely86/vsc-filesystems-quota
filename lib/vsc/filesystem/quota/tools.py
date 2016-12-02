@@ -37,7 +37,6 @@ import socket
 import time
 
 from collections import namedtuple
-from string import Template
 from urllib2 import HTTPError
 
 from vsc.administration.user import VscTier2AccountpageUser
@@ -45,8 +44,9 @@ from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.cache import FileCache
 from vsc.utils.mail import VscMail
 
-GPFS_GRACE_REGEX =
-    re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
+GPFS_GRACE_REGEX = re.compile(
+    r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)"
+)
 
 GPFS_NOGRACE_REGEX = re.compile(r"none", re.I)
 
