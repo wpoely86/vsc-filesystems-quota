@@ -30,18 +30,14 @@ Helper functions for all things quota related.
 """
 
 import logging
-import os
 import pwd
 import re
 import socket
 import time
 
 from collections import namedtuple
-from urllib2 import HTTPError
 
-from vsc.administration.user import VscTier2AccountpageUser
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
-from vsc.utils.cache import FileCache
 from vsc.utils.mail import VscMail
 
 GPFS_GRACE_REGEX = re.compile(
@@ -76,101 +72,39 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     """
     Wrapper around the new function to keep the old behaviour intact.
     """
-    logging.warning("Deprecated function: process_user_quota")
-    process_user_quota_store_optional(
-        storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run
-    )
-    process_user_quota_store_optional(
-        storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run
-    )
+    del filesystem
+    del gpfs
+
+    exceeding_users = []
+    path_template = storage.path_templates[storage_name]
+
+    push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
+
+    for (user_id, quota) in quota_map.items():
+        user_name = user_map.get(int(user_id), None)
+        if user_name and user_name.startswith('vsc4') and quota.exceeds():
+            exceeding_users.append((user_name, quota))
+
+    return exceeding_users
 
 
-def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache,
-                                      dry_run=False):
+def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client,
+                                      store_cache=False, dry_run=False):
     """
     Store the information in the user directories and in the account page.
 
     Note that the filesystem argument is not used.
     """
+    del storage
+    del gpfs
+    del storage_name
     del filesystem
-
-    exceeding_users = []
-    login_mount_point = storage[storage_name].login_mount_point
-    gpfs_mount_point = storage[storage_name].gpfs_mount_point
-    path_template = storage.path_templates[storage_name]
-
-    if not store_cache:
-        push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
-
-    for (user_id, quota) in quota_map.items():
-
-        user_name = user_map.get(int(user_id), None)
-
-        if user_name and user_name.startswith('vsc4'):
-            if quota.exceeds():
-                exceeding_users.append((user_name, quota))
-
-            if not store_cache:
-                continue
-
-            try:
-                user = VscTier2AccountpageUser(user_name, rest_client=client)
-            except HTTPError:
-                logging.warning("Cannot find an account for user %s", user_name)
-                continue
-            except AttributeError:
-                logging.warning("Cannot store quota infor for account %s", user_name)
-                continue
-
-            logging.debug("Checking quota for user %s with ID %s", user_name, user_id)
-            logging.debug("User %s quota: %s", user, quota)
-
-            path = user._get_path(storage_name)
-
-            logging.debug("path for storing quota info would be %s", path)
-
-            # FIXME: We need some better way to address this
-            # Right now, we replace the nfs mount prefix which the symlink points to
-            # with the gpfs mount point. this is a workaround until we resolve the
-            # symlink problem once we take new default scratch into production
-            if gpfs.is_symlink(path):
-                target = os.path.realpath(path)
-                logging.debug("path is a symlink, target is %s", target)
-                logging.debug("login_mount_point for %s is %s", storage_name, login_mount_point)
-                if target.startswith(login_mount_point):
-                    new_path = target.replace(login_mount_point, gpfs_mount_point, 1)
-                    logging.info("Found a symlinked path %s to the nfs mount point %s. Replaced with %s",
-                                 path, login_mount_point, gpfs_mount_point)
-                else:
-                    logging.warning("Unable to store quota information for %s on %s; symlink cannot be resolved",
-                                    user_name, storage_name)
-            else:
-                new_path = path
-
-            path_stat = os.stat(new_path)
-            filename = os.path.join(new_path, ".quota_user.json.gz")
-
-            sanitize_quota_information(path_template['user'][0], quota)
-
-            if dry_run:
-                logging.info("Dry run: would update cache for %s at %s with %s",
-                             storage_name, new_path, "%s", quota)
-                logging.info("Dry run: would chmod 0o640 %s", filename)
-                logging.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
-            else:
-                cache = FileCache(filename, False)
-                cache.update(key="quota", data=quota, threshold=0)
-                cache.update(key="storage_name", data=storage_name, threshold=0)
-                cache.close()
-
-                gpfs.ignorerealpathmismatch = True
-                gpfs.chmod(0o640, filename)
-                gpfs.chown(path_stat.st_uid, path_stat.st_uid, filename)
-                gpfs.ignorerealpathmismatch = False
-
-            logging.info("Stored user %s quota for storage %s at %s" % (user_name, storage_name, filename))
-
-    return exceeding_users
+    del quota_map
+    del user_map
+    del client
+    del store_cache
+    del dry_run
+    pass
 
 
 def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, replication_factor=1):
@@ -279,21 +213,11 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
 
 def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
     """wrapper around the new function to keep the old behaviour intact"""
-    logging.warning("Deprecated function: process_fileset_quota")
-    process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, True, dry_run)
-    process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
-
-
-def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache,
-                                         dry_run=False):
-    """Store the quota information in the filesets.
-    """
-
+    del storage
     filesets = gpfs.list_filesets()
     exceeding_filesets = []
 
-    if not store_cache:
-        push_vo_quota_to_django(storage_name, quota_map, client, dry_run, filesets, filesystem)
+    push_vo_quota_to_django(storage_name, quota_map, client, dry_run, filesets, filesystem)
 
     logging.debug("filesets = %s", filesets)
 
@@ -304,30 +228,22 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
         if quota.exceeds():
             exceeding_filesets.append((fileset_name, quota))
 
-        if not store_cache:
-            continue
-
-        path = filesets[filesystem][fileset]['path']
-        filename = os.path.join(path, ".quota_fileset.json.gz")
-        path_stat = os.stat(path)
-
-        if dry_run:
-            logging.info("Dry run: would update cache for %s at %s with %s", storage_name, path, "%s" % (quota,))
-            logging.info("Dry run: would chmod 640 %s", filename)
-            logging.info("Dry run: would chown %s to %s %s", filename, path_stat.st_uid, path_stat.st_gid)
-        else:
-            # TODO: This should somehow be some atomic operation.
-            cache = FileCache(filename, False)
-            cache.update(key="quota", data=quota, threshold=0)
-            cache.update(key="storage_name", data=storage_name, threshold=0)
-            cache.close()
-
-            gpfs.chmod(0o640, filename)
-            gpfs.chown(path_stat.st_uid, path_stat.st_gid, filename)
-
-        logging.info("Stored fileset %s [%s] quota for storage %s at %s", fileset, fileset_name, storage, filename)
-
     return exceeding_filesets
+
+
+def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client,
+                                         store_cache=False, dry_run=False):
+    """Store the quota information in the filesets.
+    """
+    del storage
+    del gpfs
+    del storage_name
+    del filesystem
+    del quota_map
+    del client
+    del store_cache
+    del dry_run
+    pass
 
 
 def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run=False):
