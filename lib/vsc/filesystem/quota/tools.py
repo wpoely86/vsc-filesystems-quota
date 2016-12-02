@@ -41,10 +41,9 @@ from string import Template
 from urllib2 import HTTPError
 
 from vsc.administration.user import VscTier2AccountpageUser
-from vsc.administration.vo import VscTier2AccountpageVo
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.cache import FileCache
-from vsc.utils.mail import VscMail, VscMailError
+from vsc.utils.mail import VscMail
 
 GPFS_GRACE_REGEX = re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
 
