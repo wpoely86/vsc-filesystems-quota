@@ -30,16 +30,13 @@ Tests for all helper functions in vsc.filesystems.quota.tools.
 @author: Andy Georges (Ghent University)
 """
 import mock
-import time
 
 import vsc.filesystem.quota.tools as tools
 
-from vsc.accountpage.wrappers import mkVscAccount, mkVo, mkVscAccountPerson
-from vsc.config.base import VSC_HOME, VSC_DATA
+from vsc.config.base import VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.filesystem.quota.tools import push_vo_quota_to_django
 from vsc.install.testing import TestCase
-from vsc.utils.mail import VscMailError
 
 
 class TestAuxiliary(TestCase):
@@ -90,10 +87,14 @@ class TestProcessing(TestCase):
 
         store_cache = False
 
-        tools.process_user_quota_store_optional(storage, gpfs, storage_name, None, quota_map, user_map, client, store_cache, dry_run=False)
+        tools.process_user_quota_store_optional(
+            storage, gpfs, storage_name, None, quota_map, user_map, client, store_cache, dry_run=False
+        )
 
         mock_os.stat.assert_not_called()
-        mock_push_quota.assert_called_with(user_map, storage_name, storage.path_templates[storage_name], quota_map, client, False)
+        mock_push_quota.assert_called_with(
+            user_map, storage_name, storage.path_templates[storage_name], quota_map, client, False
+        )
 
     @mock.patch('vsc.filesystem.quota.tools.FileCache', autospec=True)
     @mock.patch('vsc.filesystem.quota.tools.os')
@@ -129,7 +130,9 @@ class TestProcessing(TestCase):
 
         store_cache = True
 
-        tools.process_user_quota_store_optional(storage, gpfs, storage_name, None, quota_map, user_map, client, store_cache, dry_run=False)
+        tools.process_user_quota_store_optional(
+            storage, gpfs, storage_name, None, quota_map, user_map, client, store_cache, dry_run=False
+        )
 
         mock_os.stat.assert_called_with("/my_path")
         mock_push_quota.assert_not_called()
@@ -163,7 +166,9 @@ class TestProcessing(TestCase):
 
         store_cache = False
 
-        tools.process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
+        tools.process_fileset_quota_store_optional(
+            storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False
+        )
 
         mock_os.stat.assert_not_called()
         mock_push_quota.assert_called_with(storage_name, quota_map, client, False, filesets, filesystem)
@@ -198,7 +203,9 @@ class TestProcessing(TestCase):
 
         store_cache = True
 
-        tools.process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False)
+        tools.process_fileset_quota_store_optional(
+            storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False
+        )
 
         mock_os.stat.assert_called_with("/my_path")
         mock_push_quota.assert_not_called()
