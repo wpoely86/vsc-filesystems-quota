@@ -45,7 +45,8 @@ from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.cache import FileCache
 from vsc.utils.mail import VscMail
 
-GPFS_GRACE_REGEX = re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
+GPFS_GRACE_REGEX =
+    re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
 
 GPFS_NOGRACE_REGEX = re.compile(r"none", re.I)
 
@@ -71,81 +72,21 @@ Your friendly inode-watching script
 """
 
 
-QUOTA_NOTIFICATION_CACHE_THRESHOLD = 7 * 86400
-
-QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE = Template("""
-Dear $user_name
-
-
-We have noticed that you have exceeded your quota on the VSC storage,
-more in particular: $storage_name
-
-As you may know, this may have a significant impact on the jobs you
-can run on the various clusters.
-
-Please clean up any files you no longer require.
-
-Should you need more storage, you can use your VO storage.
-If you are not a member of a VO, please consider joining one or request
-a VO to be created for your research group. If your VO storage is full,
-please ask its moderator ask to increase the quota.
-
-Also, it is recommended to clear scratch storage and move data you wish
-to keep to $$VSC_DATA or $$VSC_DATA_VO/$USER. It is paramount that scratch
-space remains temporary storage for running (multi-node) jobs as it is
-accessible faster than both $$VSC_HOME and $$VSC_DATA.
-
-At this point on $time, your personal usage is the following:
-$quota_info
-
-
-Kind regards,
-The UGent HPC team
-""")
-
-
-VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE = Template("""
-Dear $user_name
-
-
-We have noticed that the VO ($vo_name) you moderate has exceeded its quota on the VSC storage,
-more in particular: $$$storage_name
-
-As you may know, this may have a significant impact on the jobs the VO members
-can run on the various clusters.
-
-Please clean up any files that are no longer required.
-
-Should you need more storage, you can reply to this mail and ask for
-the quota to be increased. Please motivate your request adequately.
-
-Also, it is recommended to have your VO members clear scratch storage and move data they wish
-to keep to $$VSC_DATA or $$VSC_DATA_VO/$USER. It is paramount that scratch
-space remains temporary storage for running (multi-node) jobs as it is
-accessible faster than both $$VSC_HOME and $$VSC_DATA.
-
-At this point on $time, the VO  usage is the following:
-$quota_info
-
-You can check your quota by running the show_quota command on the login nodes or
-visit the VSC account page at https://account.vscentrum.be/. Note that the information
-there is cached and may not show the most recent information.
-
-Kind regards,
-The UGent HPC team
-""")
-
-
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
     """
     Wrapper around the new function to keep the old behaviour intact.
     """
     logging.warning("Deprecated function: process_user_quota")
-    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run)
-    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run)
+    process_user_quota_store_optional(
+        storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run
+    )
+    process_user_quota_store_optional(
+        storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run
+    )
 
 
-def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False):
+def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache,
+                                      dry_run=False):
     """
     Store the information in the user directories and in the account page.
 
@@ -201,7 +142,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
                     logging.info("Found a symlinked path %s to the nfs mount point %s. Replaced with %s",
                                  path, login_mount_point, gpfs_mount_point)
                 else:
-                    logging.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly",
+                    logging.warning("Unable to store quota information for %s on %s; symlink cannot be resolved",
                                     user_name, storage_name)
             else:
                 new_path = path
@@ -343,7 +284,8 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
     process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
 
 
-def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False):
+def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache,
+                                         dry_run=False):
     """Store the quota information in the filesets.
     """
 
@@ -533,7 +475,8 @@ def process_inodes_information(filesets, quota, threshold=0.9):
         used = int(quota[fs_key][0].filesUsage)
 
         if used > threshold * maxinodes:
-            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated, maxinodes=maxinodes)
+            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated,
+                                                                      maxinodes=maxinodes)
 
     return critical_filesets
 
