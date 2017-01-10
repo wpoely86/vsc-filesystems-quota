@@ -37,16 +37,16 @@ import socket
 import time
 
 from collections import namedtuple
-from string import Template
 from urllib2 import HTTPError
 
 from vsc.administration.user import VscTier2AccountpageUser
-from vsc.administration.vo import VscTier2AccountpageVo
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.cache import FileCache
-from vsc.utils.mail import VscMail, VscMailError
+from vsc.utils.mail import VscMail
 
-GPFS_GRACE_REGEX = re.compile(r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)")
+GPFS_GRACE_REGEX = re.compile(
+    r"(?P<days>\d+)\s*days?|(?P<hours>\d+)\s*hours?|(?P<minutes>\d+)\s*minutes?|(?P<expired>expired)"
+)
 
 GPFS_NOGRACE_REGEX = re.compile(r"none", re.I)
 
@@ -72,81 +72,21 @@ Your friendly inode-watching script
 """
 
 
-QUOTA_NOTIFICATION_CACHE_THRESHOLD = 7 * 86400
-
-QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE = Template("""
-Dear $user_name
-
-
-We have noticed that you have exceeded your quota on the VSC storage,
-more in particular: $storage_name
-
-As you may know, this may have a significant impact on the jobs you
-can run on the various clusters.
-
-Please clean up any files you no longer require.
-
-Should you need more storage, you can use your VO storage.
-If you are not a member of a VO, please consider joining one or request
-a VO to be created for your research group. If your VO storage is full,
-please ask its moderator ask to increase the quota.
-
-Also, it is recommended to clear scratch storage and move data you wish
-to keep to $$VSC_DATA or $$VSC_DATA_VO/$USER. It is paramount that scratch
-space remains temporary storage for running (multi-node) jobs as it is
-accessible faster than both $$VSC_HOME and $$VSC_DATA.
-
-At this point on $time, your personal usage is the following:
-$quota_info
-
-
-Kind regards,
-The UGent HPC team
-""")
-
-
-VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE = Template("""
-Dear $user_name
-
-
-We have noticed that the VO ($vo_name) you moderate has exceeded its quota on the VSC storage,
-more in particular: $$$storage_name
-
-As you may know, this may have a significant impact on the jobs the VO members
-can run on the various clusters.
-
-Please clean up any files that are no longer required.
-
-Should you need more storage, you can reply to this mail and ask for
-the quota to be increased. Please motivate your request adequately.
-
-Also, it is recommended to have your VO members clear scratch storage and move data they wish
-to keep to $$VSC_DATA or $$VSC_DATA_VO/$USER. It is paramount that scratch
-space remains temporary storage for running (multi-node) jobs as it is
-accessible faster than both $$VSC_HOME and $$VSC_DATA.
-
-At this point on $time, the VO  usage is the following:
-$quota_info
-
-You can check your quota by running the show_quota command on the login nodes or
-visit the VSC account page at https://account.vscentrum.be/. Note that the information
-there is cached and may not show the most recent information.
-
-Kind regards,
-The UGent HPC team
-""")
-
-
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
     """
     Wrapper around the new function to keep the old behaviour intact.
     """
     logging.warning("Deprecated function: process_user_quota")
-    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run)
-    process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run)
+    process_user_quota_store_optional(
+        storage, gpfs, storage_name, filesystem, quota_map, user_map, client, False, dry_run
+    )
+    process_user_quota_store_optional(
+        storage, gpfs, storage_name, filesystem, quota_map, user_map, client, True, dry_run
+    )
 
 
-def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache, dry_run=False):
+def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, store_cache,
+                                      dry_run=False):
     """
     Store the information in the user directories and in the account page.
 
@@ -202,7 +142,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
                     logging.info("Found a symlinked path %s to the nfs mount point %s. Replaced with %s",
                                  path, login_mount_point, gpfs_mount_point)
                 else:
-                    logging.warning("Unable to store quota information for %s on %s; symlink cannot be resolved properly",
+                    logging.warning("Unable to store quota information for %s on %s; symlink cannot be resolved",
                                     user_name, storage_name)
             else:
                 new_path = path
@@ -344,7 +284,8 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
     process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, False, dry_run)
 
 
-def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache, dry_run=False):
+def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client, store_cache,
+                                         dry_run=False):
     """Store the quota information in the filesets.
     """
 
@@ -508,119 +449,6 @@ def sanitize_quota_information(fileset_name, quota):
             quota.quota_map.pop(fileset)
 
 
-def notify(storage_name, item, quota, client, dry_run=False):
-    """Send out the notification"""
-    mail = VscMail(mail_host="smtp.ugent.be")
-    if isinstance(item, tuple):
-        item = item[0]
-    if item.startswith("gvo"):  # VOs
-        vo = VscTier2AccountpageVo(item, rest_client=client)
-        for user in [VscTier2AccountpageUser(m, rest_client=client) for m in vo.vo.moderators]:
-            message = VO_QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
-                                                                           vo_name=item,
-                                                                           storage_name=storage_name,
-                                                                           quota_info="%s" % (quota,),
-                                                                           time=time.ctime())
-            if dry_run:
-                logging.info("Dry-run, would send the following message: %s" % (message,))
-            else:
-                try:
-                    mail.sendTextMail(mail_to=user.account.email,
-                                      mail_from="hpc@ugent.be",
-                                      reply_to="hpc@ugent.be",
-                                      mail_subject="Quota on %s exceeded" % (storage_name,),
-                                      message=message.encode('utf-8'))
-                except VscMailError, err:
-                    logging.error("Unable to send mail to %s: %s", user.account.email, err)
-                else:
-                    logging.info("notification: recipient %s storage %s quota_string %s" %
-                                (user.account.vsc_id, storage_name, "%s" % (quota,)))
-
-    elif item.startswith("gpr"):  # projects
-        pass
-    elif item.startswith("vsc"):  # users
-        logging.info("notifying VSC user %s", item)
-        user = VscTier2AccountpageUser(item, rest_client=client)
-
-        exceeding_filesets = [fs for (fs, q) in quota.quota_map.items() if q.expired[0]]
-        storage_names = []
-        if [ef for ef in exceeding_filesets if not ef.startswith("gvo")]:
-            storage_names.append(storage_name)
-        if [ef for ef in exceeding_filesets if ef.startswith("gvo")]:
-            storage_names.append(storage_name + "_VO")
-        storage_names = ", ".join(["$" + sn for sn in storage_names])
-
-        message = QUOTA_EXCEEDED_MAIL_TEXT_TEMPLATE.safe_substitute(user_name=user.person.gecos,
-                                                                    storage_name=storage_names,
-                                                                    quota_info="%s" % (quota,),
-                                                                    time=time.ctime())
-        if dry_run:
-            logging.info("Dry-run, would send the following message: %s" % (message,))
-        else:
-            try:
-                mail.sendTextMail(mail_to=user.account.email,
-                                  mail_from="hpc@ugent.be",
-                                  reply_to="hpc@ugent.be",
-                                  mail_subject="Quota on %s exceeded" % (storage_name,),
-                                  message=message.encode('utf-8'))
-            except VscMailError, err:
-                logging.error("Unable to send mail to %s: %s", user.account.email, err)
-            else:
-                logging.info("notification: recipient %s storage %s quota_string %s" %
-                            (user.account.vsc_id, storage_name, "%s" % (quota,)))
-    else:
-        logging.error("Should send a mail, but cannot process item %s" % (item,))
-
-
-
-def notify_exceeding_items(gpfs, storage, filesystem, exceeding_items, target, client, dry_run=False):
-    """Send out notification to the fileset owners.
-
-    - if the fileset belongs to a VO: the VO moderator
-    - if the fileset belongs to a project: the project moderator
-    - if the fileset belongs to a user: the user
-
-    The information is cached. The mail is sent in the following cases:
-        - the excession is new
-        - the excession occurred more than 7 days ago and stayed in the cache. In this case, the cache is updated as
-          to avoid sending outdated mails repeatedly.
-    """
-    cache_path = os.path.join(
-        gpfs.list_filesystems()[filesystem]['defaultMountPoint'],
-        ".quota_%s_cache.json.gz" % (target)
-    )
-    cache = FileCache(cache_path, True)  # we retain the old data
-
-    logging.info("Processing %d exceeding items" % (len(exceeding_items)))
-
-    updated_cache = False
-    for (item, quota) in exceeding_items:
-        updated = cache.update(item, quota, QUOTA_NOTIFICATION_CACHE_THRESHOLD)
-        logging.info("Storage %s: cache entry for %s was updated: %s" % (storage, item, updated))
-        if updated:
-            notify(storage, item, quota, client, dry_run)
-        updated_cache = updated_cache or updated
-
-    if not dry_run and updated_cache:
-        cache.close()
-
-    if dry_run:
-        logging.info("dry-run: not saving any cache")
-
-
-def notify_exceeding_filesets(**kwargs):
-    """Notification for filesets that have exceeded their quota."""
-
-    kwargs['target'] = 'filesets'
-    notify_exceeding_items(**kwargs)
-
-
-def notify_exceeding_users(**kwargs):
-    """Notification for users who have exceeded their quota."""
-    kwargs['target'] = 'users'
-    notify_exceeding_items(**kwargs)
-
-
 def map_uids_to_names():
     """Determine the mapping between user ids and user names."""
     ul = pwd.getpwall()
@@ -647,7 +475,8 @@ def process_inodes_information(filesets, quota, threshold=0.9):
         used = int(quota[fs_key][0].filesUsage)
 
         if used > threshold * maxinodes:
-            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated, maxinodes=maxinodes)
+            critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated,
+                                                                      maxinodes=maxinodes)
 
     return critical_filesets
 
