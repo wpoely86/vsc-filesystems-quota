@@ -43,7 +43,7 @@ from vsc.accountpage.client import AccountpageClient
 from vsc.config.base import VscStorage
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
-from vsc.filesystem.quota.tools import process_user_quota_store_optional, process_fileset_quota_store_optional
+from vsc.filesystem.quota.tools import process_user_quota, process_fileset_quota
 from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
@@ -110,10 +110,10 @@ def main():
                 replication_factor
             )
 
-            exceeding_filesets[storage_name] = process_fileset_quota_store(
+            exceeding_filesets[storage_name] = process_fileset_quota(
                 storage, gpfs, storage_name, filesystem, quota_storage_map['FILESET'],
                 client, opts.options.dry_run)
-            exceeding_users[storage_name] = process_user_quota_store(
+            exceeding_users[storage_name] = process_user_quota(
                 storage, gpfs, storage_name, None, quota_storage_map['USR'],
                 user_id_map, client, opts.options.dry_run)
 
