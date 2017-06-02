@@ -29,6 +29,7 @@ Helper functions for all things quota related.
 @author: Andy Georges (Ghent University)
 """
 
+import inspect
 import logging
 import pwd
 import re
@@ -104,6 +105,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
     del client
     del store_cache
     del dry_run
+    logging.warning("The %s functon has been deprecated and should not longer be used." % inspect.stack()[0][3])
     pass
 
 
@@ -245,6 +247,7 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
     del client
     del store_cache
     del dry_run
+    logging.warning("The %s functon has been deprecated and should not longer be used." % inspect.stack()[0][3])
     pass
 
 
