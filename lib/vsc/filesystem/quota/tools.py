@@ -93,7 +93,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
     """
     Store the information in the user directories and in the account page.
 
-    Note that the filesystem argument is not used.
+    Deprecated. Does nothing anymore.
     """
     del storage
     del gpfs
@@ -234,6 +234,8 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
 def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client,
                                          store_cache=False, dry_run=False):
     """Store the quota information in the filesets.
+
+    Deprecated. Does nothing anymore.
     """
     del storage
     del gpfs
