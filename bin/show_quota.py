@@ -27,9 +27,12 @@
 #
 """
 Client-side script to gather quota information stored for the user on various filesystems and
-display it in an understandable format
+display it in an understandable format.
 
-Note that this script was begun from scratch after the move to the new storage setup/layout.
+Storing the quota information in a cache file accessible only to the user is taking too long
+and will take even longer in the future. This approach is no longer used. Users should consult
+the account page for cache quota information (with an accuracy of 10 minutes).
+
 
 @author: Andy Georges (Ghent University)
 """
