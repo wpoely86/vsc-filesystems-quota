@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -110,12 +110,12 @@ def main():
                 replication_factor
             )
 
-            exceeding_filesets[storage_name] = process_fileset_quota_store_optional(
+            exceeding_filesets[storage_name] = process_fileset_quota_store(
                 storage, gpfs, storage_name, filesystem, quota_storage_map['FILESET'],
-                client, opts.options.write_cache, opts.options.dry_run)
-            exceeding_users[storage_name] = process_user_quota_store_optional(
+                client, opts.options.dry_run)
+            exceeding_users[storage_name] = process_user_quota_store(
                 storage, gpfs, storage_name, None, quota_storage_map['USR'],
-                user_id_map, client, opts.options.write_cache, opts.options.dry_run)
+                user_id_map, client, opts.options.dry_run)
 
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
             if exceeding_filesets[storage_name]:
