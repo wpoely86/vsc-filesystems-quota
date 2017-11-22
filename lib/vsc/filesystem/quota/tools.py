@@ -299,8 +299,15 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
     """
     Upload the VO usage information to the account page, so it can be displayed in the web interface.
     """
-    payload = []
-    count = 0
+    storage_name_shared = storage_name + "_SHARED"
+    payload = {
+        storage_name: [],
+        storage_name_shared: []
+    }
+    count = {
+        storage_name: 0,
+        storage_name_shared: 0
+    }
 
     logging.info("Logging VO quota to account page")
     logging.debug("Considering the following quota items for pushing: %s", quota_map)
@@ -314,7 +321,7 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
 
         if fileset_name.startswith('gvos'):
             vo_name = fileset_name.replace('gvos', 'gvo')
-            storage_name_ = storage_name + "_SHARED"
+            storage_name_ = storage_name_shared
         else:
             vo_name = fileset_name
             storage_name_ = storage_name
@@ -331,13 +338,17 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
                 "expired": quota_.expired[0],
                 "remaining": quota_.expired[1] or 0,  # seconds
             }
-            payload.append(params)
-            count += 1
+            payload[storage_name_].append(params)
+            count[storage_name_] += 1
 
-            if count > 100:
-                push_quota_to_django(storage_name_, QUOTA_VO_KIND, client, payload, dry_run)
-                count = 0
-                payload = []
+            if count[storage_name_] > 100:
+                push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload[storage_name_], dry_run)
+                count[storage_name_] = 0
+                payload[storage_name_] = []
+
+    for s in (storage_name, storage_name_shared):
+        if payload[s]:
+            push_quota_to_django(s, QUOTA_VO_KIND, client, payload[s], dry_run)
 
 
 def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
