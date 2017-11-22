@@ -54,6 +54,7 @@ QUOTA_VO_KIND = 'vo'
 class QuotaException(Exception):
     pass
 
+
 InodeCritical = namedtuple("InodeCritical", ['used', 'allocated', 'maxinodes'])
 
 
@@ -311,10 +312,17 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
         if not fileset_name.startswith('gvo'):
             continue
 
+        if fileset_name.startswith('gvos'):
+            vo_name = fileset_name.replace('gvos', 'gvo')
+            storage_name_ = storage_name + "_SHARED"
+        else:
+            vo_name = fileset_name
+            storage_name_ = storage_name
+
         for (fileset_, quota_) in quota.quota_map.items():
 
             params = {
-                "vo": fileset_name,
+                "vo": vo_name,
                 "fileset": fileset_,
                 "used": quota_.used,
                 "soft": quota_.soft,
@@ -327,12 +335,9 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
             count += 1
 
             if count > 100:
-                push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload, dry_run)
+                push_quota_to_django(storage_name_, QUOTA_VO_KIND, client, payload, dry_run)
                 count = 0
                 payload = []
-
-    if payload:
-        push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload, dry_run)
 
 
 def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
