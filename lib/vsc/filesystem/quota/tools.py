@@ -85,10 +85,10 @@ class DjangoPusher(object):
             self.storage_name_shared: 0
         }
 
-        self.payload = {
-            self.storage_name: [],
-            self.storage_name_shared: []
-        }
+        self.payload = dict([
+            (self.storage_name, []),
+            (self.storage_name_shared, [])
+        ])
 
     def __enter__(self):
         return self

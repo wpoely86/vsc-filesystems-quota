@@ -35,7 +35,7 @@ import vsc.filesystem.quota.tools as tools
 
 from vsc.config.base import VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
-from vsc.filesystem.quota.tools import push_vo_quota_to_django
+from vsc.filesystem.quota.tools import push_vo_quota_to_django, DjangoPusher, QUOTA_USER_KIND
 from vsc.install.testing import TestCase
 
 
@@ -140,3 +140,13 @@ class TestProcessing(TestCase):
 
         client = mock.MagicMock()
         push_vo_quota_to_django(storage_name, quota_map, client, False, filesets, filesystem)
+
+    def test_django_pusher(self):
+
+        client = mock.MagicMock()
+
+        with DjangoPusher("my_storage", client, QUOTA_USER_KIND, False) as pusher:
+            for i in xrange(0, 101):
+                pusher.push("my_storage", "pushing %d" % i)
+
+            self.assertEqual(pusher.payload, {"my_storage": [], "my_storage_SHARED": []})
