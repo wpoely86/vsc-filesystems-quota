@@ -38,6 +38,7 @@ import time
 
 from collections import namedtuple
 
+from vsc.config.base import GENT_VO_PREFIX, GENT_VO_SHARED_PREFIX, STORAGE_SHARED_SUFFIX
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.mail import VscMail
 
@@ -363,12 +364,12 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
             fileset_name = filesets[filesystem][fileset]['filesetName']
             logging.debug("Fileset %s quota: %s", fileset_name, quota)
 
-            if not fileset_name.startswith('gvo'):
+            if not fileset_name.startswith(GENT_VO_PREFIX):
                 continue
 
-            if fileset_name.startswith('gvos'):
-                derived_vo_name = fileset_name.replace('gvos', 'gvo')
-                derived_storage_name = storage_name + "_SHARED"
+            if fileset_name.startswith(GENT_VO_SHARED_PREFIX):
+                derived_vo_name = fileset_name.replace(GENT_VO_SHARED_PREFIX, GENT_VO_PREFIX)
+                derived_storage_name = storage_name + STORAGE_SHARED_SUFFIX
             else:
                 derived_vo_name = fileset_name
                 derived_storage_name = storage_name
@@ -397,7 +398,10 @@ def sanitize_quota_information(fileset_name, quota):
         - project
     """
     for fileset in quota.quota_map.keys():
-        if not fileset.startswith('vsc') and not fileset.startswith('gvo') and not fileset.startswith(fileset_name):
+        if not fileset.startswith('vsc') and \
+           not fileset.startswith(GENT_VO_PREFIX) and \
+           not fileset.startswith(GENT_VO_SHARED_PREFIX) and \
+           not fileset.startswith(fileset_name):
             quota.quota_map.pop(fileset)
 
 
