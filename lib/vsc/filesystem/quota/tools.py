@@ -38,6 +38,7 @@ import time
 
 from collections import namedtuple
 
+from vsc.config.base import GENT_VO_PREFIX, GENT_VO_SHARED_PREFIX, STORAGE_SHARED_SUFFIX
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.mail import VscMail
 
@@ -54,6 +55,7 @@ QUOTA_VO_KIND = 'vo'
 class QuotaException(Exception):
     pass
 
+
 InodeCritical = namedtuple("InodeCritical", ['used', 'allocated', 'maxinodes'])
 
 
@@ -67,6 +69,73 @@ The following filesets will be running out of inodes soon (or may already have r
 Kind regards,
 Your friendly inode-watching script
 """
+
+
+class DjangoPusher(object):
+    """Context manager for pushing stuff to django"""
+
+    def __init__(self, storage_name, client, kind, dry_run):
+        self.storage_name = storage_name
+        self.storage_name_shared = storage_name + "_SHARED"
+        self.client = client
+        self.kind = kind
+        self.dry_run = dry_run
+
+        self.count = {
+            self.storage_name: 0,
+            self.storage_name_shared: 0
+        }
+
+        self.payload = {
+            self.storage_name: [],
+            self.storage_name_shared: []
+        }
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if self.payload[self.storage_name]:
+            self._push(self.storage_name, self.payload[self.storage_name])
+        if self.payload[self.storage_name_shared]:
+            self._push(self.storage_name_shared, self.payload[self.storage_name_shared])
+
+        if exc_type is not None:
+            logging.error("Received exception %s in DjangoPusher: %s", exc_type, exc_value)
+            return False
+
+        return True
+
+    def push(self, storage_name, payload):
+        self.payload[storage_name].append(payload)
+        self.count[storage_name] += 1
+
+        if self.count[storage_name] > 100:
+            self._push(storage_name, self.payload[storage_name])
+            self.count[storage_name] = 0
+            self.payload[storage_name] = []
+
+    def _push(self, storage_name, payload):
+        """Does the actual pushing to the REST API"""
+
+        if self.dry_run:
+            logging.info("Would push payload to account web app: %s" % (payload,))
+        else:
+            try:
+                cl = self.client.usage.storage[storage_name]
+                if self.kind == QUOTA_USER_KIND:
+                    logging.debug("Pushing user payload to account web app: %s", payload)
+                    cl = cl.user
+                elif self.kind == QUOTA_VO_KIND:
+                    logging.debug("Pushing vo payload to account web app: %s", payload)
+                    cl = cl.vo
+                else:
+                    logging.error("Unknown quota kind, not pushing any quota to the account page")
+                    return
+                cl.size.put(body=payload)  # if all is well, there's nothing returned except (200, empty string)
+            except Exception:
+                logging.error("Could not store quota info in account web app")
+                raise
 
 
 def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
@@ -255,106 +324,69 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
     """
     Upload the quota information to the account page, so it can be displayed for the users in the web application.
     """
-
-    payload = []
-    count = 0
-
     logging.info("Logging user quota to account page")
     logging.debug("Considering the following quota items for pushing: %s", quota_map)
 
-    for (user_id, quota) in quota_map.items():
+    with DjangoPusher(storage_name, client, QUOTA_USER_KIND, dry_run) as pusher:
+        for (user_id, quota) in quota_map.items():
 
-        user_name = user_map.get(int(user_id), None)
-        if not user_name or not user_name.startswith('vsc4'):
-            continue
+            user_name = user_map.get(int(user_id), None)
+            if not user_name or not user_name.startswith('vsc4'):
+                continue
 
-        sanitize_quota_information(path_template['user'][0], quota)
+            sanitize_quota_information(path_template['user'][0], quota)
 
-        for (fileset, quota_) in quota.quota_map.items():
+            for (fileset, quota_) in quota.quota_map.items():
 
-            params = {
-                "fileset": fileset,
-                "user": user_name,
-                "used": quota_.used,
-                "soft": quota_.soft,
-                "hard": quota_.hard,
-                "doubt": quota_.doubt,
-                "expired": quota_.expired[0],
-                "remaining": quota_.expired[1] or 0,  # seconds
-            }
-            payload.append(params)
-            count += 1
-
-            if count > 100:
-                push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
-                count = 0
-                payload = []
-
-    if payload:
-        push_quota_to_django(storage_name, QUOTA_USER_KIND, client, payload, dry_run)
+                params = {
+                    "fileset": fileset,
+                    "user": user_name,
+                    "used": quota_.used,
+                    "soft": quota_.soft,
+                    "hard": quota_.hard,
+                    "doubt": quota_.doubt,
+                    "expired": quota_.expired[0],
+                    "remaining": quota_.expired[1] or 0,  # seconds
+                }
+                pusher.push(params)
 
 
 def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, filesets=None, filesystem=None):
     """
     Upload the VO usage information to the account page, so it can be displayed in the web interface.
     """
-    payload = []
-    count = 0
-
     logging.info("Logging VO quota to account page")
     logging.debug("Considering the following quota items for pushing: %s", quota_map)
 
-    for (fileset, quota) in quota_map.items():
-        fileset_name = filesets[filesystem][fileset]['filesetName']
-        logging.debug("Fileset %s quota: %s", fileset_name, quota)
+    with DjangoPusher(storage_name, client, QUOTA_VO_KIND, dry_run) as pusher:
 
-        if not fileset_name.startswith('gvo'):
-            continue
+        for (fileset, quota) in quota_map.items():
+            fileset_name = filesets[filesystem][fileset]['filesetName']
+            logging.debug("Fileset %s quota: %s", fileset_name, quota)
 
-        for (fileset_, quota_) in quota.quota_map.items():
+            if not fileset_name.startswith(GENT_VO_PREFIX):
+                continue
 
-            params = {
-                "vo": fileset_name,
-                "fileset": fileset_,
-                "used": quota_.used,
-                "soft": quota_.soft,
-                "hard": quota_.hard,
-                "doubt": quota_.doubt,
-                "expired": quota_.expired[0],
-                "remaining": quota_.expired[1] or 0,  # seconds
-            }
-            payload.append(params)
-            count += 1
-
-            if count > 100:
-                push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload, dry_run)
-                count = 0
-                payload = []
-
-    if payload:
-        push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload, dry_run)
-
-
-def push_quota_to_django(storage_name, kind, client, payload, dry_run=False):
-
-    if dry_run:
-        logging.info("Would push payload to account web app: %s" % (payload,))
-    else:
-        try:
-            cl = client.usage.storage[storage_name]
-            if kind == QUOTA_USER_KIND:
-                logging.debug("Pushing user payload to account web app: %s", payload)
-                cl = cl.user
-            elif kind == QUOTA_VO_KIND:
-                logging.debug("Pushing vo payload to account web app: %s", payload)
-                cl = cl.vo
+            if fileset_name.startswith(GENT_VO_SHARED_PREFIX):
+                derived_vo_name = fileset_name.replace(GENT_VO_SHARED_PREFIX, GENT_VO_PREFIX)
+                derived_storage_name = storage_name + STORAGE_SHARED_SUFFIX
             else:
-                logging.error("Unknown quota kind, not pushing any quota to the account page")
-                return
-            cl.size.put(body=payload)  # if all is well, there's nothing returned except (200, empty string)
-        except Exception:
-            logging.error("Could not store quota info in account web app")
-            raise
+                derived_vo_name = fileset_name
+                derived_storage_name = storage_name
+
+            for (fileset_, quota_) in quota.quota_map.items():
+
+                params = {
+                    "vo": derived_vo_name,
+                    "fileset": fileset_,
+                    "used": quota_.used,
+                    "soft": quota_.soft,
+                    "hard": quota_.hard,
+                    "doubt": quota_.doubt,
+                    "expired": quota_.expired[0],
+                    "remaining": quota_.expired[1] or 0,  # seconds
+                }
+                pusher.push(derived_storage_name, params)
 
 
 def sanitize_quota_information(fileset_name, quota):
@@ -366,7 +398,10 @@ def sanitize_quota_information(fileset_name, quota):
         - project
     """
     for fileset in quota.quota_map.keys():
-        if not fileset.startswith('vsc') and not fileset.startswith('gvo') and not fileset.startswith(fileset_name):
+        if not fileset.startswith('vsc') and \
+           not fileset.startswith(GENT_VO_PREFIX) and \
+           not fileset.startswith(GENT_VO_SHARED_PREFIX) and \
+           not fileset.startswith(fileset_name):
             quota.quota_map.pop(fileset)
 
 
