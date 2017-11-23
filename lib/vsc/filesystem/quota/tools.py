@@ -320,16 +320,16 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
             continue
 
         if fileset_name.startswith('gvos'):
-            vo_name = fileset_name.replace('gvos', 'gvo')
-            storage_name_ = storage_name_shared
+            derived_vo_name = fileset_name.replace('gvos', 'gvo')
+            derived_storage_name = storage_name_shared
         else:
-            vo_name = fileset_name
-            storage_name_ = storage_name
+            derived_vo_name = fileset_name
+            derived_storage_name = storage_name
 
         for (fileset_, quota_) in quota.quota_map.items():
 
             params = {
-                "vo": vo_name,
+                "vo": derived_vo_name,
                 "fileset": fileset_,
                 "used": quota_.used,
                 "soft": quota_.soft,
@@ -338,13 +338,13 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
                 "expired": quota_.expired[0],
                 "remaining": quota_.expired[1] or 0,  # seconds
             }
-            payload[storage_name_].append(params)
-            count[storage_name_] += 1
+            payload[derived_storage_name].append(params)
+            count[derived_storage_name] += 1
 
-            if count[storage_name_] > 100:
-                push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload[storage_name_], dry_run)
-                count[storage_name_] = 0
-                payload[storage_name_] = []
+            if count[derived_storage_name] > 100:
+                push_quota_to_django(storage_name, QUOTA_VO_KIND, client, payload[derived_storage_name], dry_run)
+                count[derived_storage_name] = 0
+                payload[derived_storage_name] = []
 
     for s in (storage_name, storage_name_shared):
         if payload[s]:
