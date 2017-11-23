@@ -93,11 +93,16 @@ class DjangoPusher(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         if self.payload[self.storage_name]:
             self._push(self.storage_name, self.payload[self.storage_name])
         if self.payload[self.storage_name_shared]:
             self._push(self.storage_name_shared, self.payload[self.storage_name_shared])
+
+        if exc_type is not None:
+            logging.error("Received exception %s in DjangoPusher: %s", exc_type, exc_value)
+            return False
+
         return True
 
     def push(self, storage_name, payload):
