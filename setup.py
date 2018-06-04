@@ -34,6 +34,8 @@ PACKAGE = {
         'vsc-config >= 1.36.0',
         'vsc-filesystems >= 0.30',
         'vsc-utils >= 1.8.5',
+        'vsc-ldap >= 1.4',
+        'vsc-ldap-extension >= 1.10',
     ],
     'tests_require': ['mock'],
     'dependency_links': [
