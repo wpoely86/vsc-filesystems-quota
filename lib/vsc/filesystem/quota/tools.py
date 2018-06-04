@@ -348,7 +348,7 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
                     "expired": quota_.expired[0],
                     "remaining": quota_.expired[1] or 0,  # seconds
                 }
-                pusher.push(params)
+                pusher.push(storage_name, params)
 
 
 def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, filesets=None, filesystem=None):
