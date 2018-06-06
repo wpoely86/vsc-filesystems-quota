@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#
 # Copyright 2013-2018 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
