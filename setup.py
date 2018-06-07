@@ -23,7 +23,7 @@ import vsc.install.shared_setup as shared_setup
 from vsc.install.shared_setup import ag
 
 PACKAGE = {
-    'version': '0.12.4',
+    'version': '0.12.5',
     'author': [ag],
     'maintainer': [ag],
     'excluded_pkgs_rpm': ['vsc', 'vsc.filesystem', 'vsc.filesystem.quota'],
