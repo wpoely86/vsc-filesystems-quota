@@ -226,7 +226,35 @@ def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, replication_fa
     return {"USR": user_map, "FILESET": fs_map}
 
 
-def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, replication_factor=1):
+def determine_grace_period(grace_string):
+    grace = GPFS_GRACE_REGEX.search(grace_string)
+    nograce = GPFS_NOGRACE_REGEX.search(grace_string)
+
+    if nograce:
+        expired = (False, None)
+    elif grace:
+        grace = grace.groupdict()
+        if grace.get('days', None):
+            expired = (True, int(grace['days']) * 86400)
+        elif grace.get('hours', None):
+            expired = (True, int(grace['hours']) * 3600)
+        elif grace.get('minutes', None):
+            expired = (True, int(grace['minutes']) * 60)
+        elif grace.get('expired', None):
+            expired = (True, 0)
+        else:
+            logging.error("Unprocessed grace groupdict %s (from string %s).",
+                          grace, grace_string)
+            raise QuotaException("Cannot process grace time string")
+    else:
+        logging.error("Unknown grace string %s.", grace_string)
+        raise QuotaException("Cannot process grace information (%s)" % grace_string)
+
+    return expired
+
+
+def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, 
+                         replication_factor=1, metadata_replication_factor=2):
     """
     Update the quota information for an entity (user or fileset).
 
@@ -240,28 +268,9 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
 
     for quota in gpfs_quotas:
         logging.debug("gpfs_quota = %s" % (str(quota)))
-        grace = GPFS_GRACE_REGEX.search(quota.blockGrace)
-        nograce = GPFS_NOGRACE_REGEX.search(quota.blockGrace)
 
-        if nograce:
-            expired = (False, None)
-        elif grace:
-            grace = grace.groupdict()
-            if grace.get('days', None):
-                expired = (True, int(grace['days']) * 86400)
-            elif grace.get('hours', None):
-                expired = (True, int(grace['hours']) * 3600)
-            elif grace.get('minutes', None):
-                expired = (True, int(grace['minutes']) * 60)
-            elif grace.get('expired', None):
-                expired = (True, 0)
-            else:
-                logging.error("Unprocessed grace groupdict %s (from string %s).",
-                              grace, quota.blockGrace)
-                raise QuotaException("Cannot process grace time string")
-        else:
-            logging.error("Unknown grace string %s.", quota.blockGrace)
-            raise QuotaException("Cannot process grace information (%s)" % quota.blockGrace)
+        block_expired = determine_grace_period(quota.blockGrace)
+        files_expired = determine_grace_period(quota.filesGrace)
 
         if quota.filesetname:
             fileset_name = filesets[filesystem][quota.filesetname]['filesetName']
@@ -269,14 +278,19 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
             fileset_name = None
 
         logging.debug("The fileset name is %s (filesystem %s); blockgrace %s to expired %s",
-                      fileset_name, filesystem, quota.blockGrace, expired)
+                      fileset_name, filesystem, quota.blockGrace, block_expired)
 
         entity.update(fileset_name,
                       int(quota.blockUsage) // replication_factor,
                       int(quota.blockQuota) // replication_factor,
                       int(quota.blockLimit) // replication_factor,
                       int(quota.blockInDoubt) // replication_factor,
-                      expired,
+                      block_expired,
+                      int(quota.filesUsage) // metadata_replication_factor,
+                      int(quota.filesSoft) // metadata_replication_factor,
+                      int(quota.filesHard) // metadata_replication_factor,
+                      int(quota.filesInDoubt) // metadata_replication_factor,
+                      files_expired,
                       timestamp)
 
     return entity
@@ -347,6 +361,8 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
                     "doubt": quota_.doubt,
                     "expired": quota_.expired[0],
                     "remaining": quota_.expired[1] or 0,  # seconds
+                    "files_used": quota_.files_used,
+                    # users do not have inode limits, so no need to push other data
                 }
                 pusher.push(storage_name, params)
 
@@ -385,6 +401,12 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
                     "doubt": quota_.doubt,
                     "expired": quota_.expired[0],
                     "remaining": quota_.expired[1] or 0,  # seconds
+                    "files_used": quota_.files_used,
+                    "files_soft": quota_.files_soft,
+                    "files_hard": quota_.files_hard,
+                    "files_doubt": quota_.files_doubt,
+                    "files_expired": quota_.files_expired[0],
+                    "files_remaining": quota_.files_expired[1], # seconds
                 }
                 pusher.push(derived_storage_name, params)
 
