@@ -192,6 +192,7 @@ def get_mmrepquota_maps(quota_map, storage, filesystem, filesets,
     Returns { "USR": user dictionary, "FILESET": fileset dictionary}.
 
     @type replication_factor: int, describing the number of copies the FS holds for each file
+    @type metadata_replication_factor: int, describing the number of copies the FS metadata holds for each file
     """
     user_map = {}
     fs_map = {}
@@ -281,16 +282,19 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp,
         logging.debug("The fileset name is %s (filesystem %s); blockgrace %s to expired %s",
                       fileset_name, filesystem, quota.blockGrace, block_expired)
 
+        # XXX: We do NOT divide by the metatadata_replication_factor (yet), since we do not
+        #      set the inode quota through the account page. As such, we need to have the exact 
+        #      usage available for the user -- this is the same data reported in ES by gpfsbeat.
         entity.update(fileset_name,
                       int(quota.blockUsage) // replication_factor,
                       int(quota.blockQuota) // replication_factor,
                       int(quota.blockLimit) // replication_factor,
                       int(quota.blockInDoubt) // replication_factor,
                       block_expired,
-                      int(quota.filesUsage) // metadata_replication_factor,
-                      int(quota.filesSoft) // metadata_replication_factor,
-                      int(quota.filesHard) // metadata_replication_factor,
-                      int(quota.filesInDoubt) // metadata_replication_factor,
+                      int(quota.filesUsage),
+                      int(quota.filesSoft),
+                      int(quota.filesHard),
+                      int(quota.filesInDoubt),
                       files_expired,
                       timestamp)
 
