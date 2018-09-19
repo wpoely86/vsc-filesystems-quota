@@ -367,6 +367,12 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
                     "expired": quota_.expired[0],
                     "remaining": quota_.expired[1] or 0,  # seconds
                     "files_used": quota_.files_used,
+                    "files_soft": quota_.files_soft,
+                    "files_hard": quota_.files_hard,
+                    "files_doubt": quota_.files_doubt,
+                    "files_expired": quota_.files_expired[0],
+                    "files_remaining": quota_.files_expired[1], # seconds
+                }
                     # users do not have inode limits, so no need to push other data
                 }
                 pusher.push(storage_name, params)
