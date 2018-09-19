@@ -178,7 +178,8 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
     pass
 
 
-def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, replication_factor=1):
+def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, 
+                        replication_factor=1, metadata_replication_factor=2):
     """Obtain the quota information.
 
     This function uses vsc.filesystem.gpfs.GpfsOperations to obtain
