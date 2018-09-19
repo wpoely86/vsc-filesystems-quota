@@ -255,8 +255,7 @@ def determine_grace_period(grace_string):
     return expired
 
 
-def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, 
-                         replication_factor=1, metadata_replication_factor=2):
+def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, replication_factor=1):
     """
     Update the quota information for an entity (user or fileset).
 
@@ -267,7 +266,6 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp,
     @type timestamp: a timestamp, duh. an integer
     @type replication_factor: int, describing the number of copies the FS holds for each file
     """
-
     for quota in gpfs_quotas:
         logging.debug("gpfs_quota = %s" % (str(quota)))
 
