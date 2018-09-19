@@ -23,7 +23,7 @@ import vsc.install.shared_setup as shared_setup
 from vsc.install.shared_setup import ag
 
 PACKAGE = {
-    'version': '0.12.8',
+    'version': '0.13',
     'author': [ag],
     'maintainer': [ag],
     'excluded_pkgs_rpm': ['vsc', 'vsc.filesystem', 'vsc.filesystem.quota'],
@@ -32,7 +32,7 @@ PACKAGE = {
         'vsc-administration >= 0.35',
         'vsc-base >= 2.5.1',
         'vsc-config >= 2.0.2',
-        'vsc-filesystems >= 0.30',
+        'vsc-filesystems >= 0.36',
         'vsc-utils >= 1.8.5',
         'vsc-ldap >= 1.4',
         'vsc-ldap-extension >= 1.10',
