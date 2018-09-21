@@ -178,7 +178,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
     pass
 
 
-def get_mmrepquota_maps(quota_map, storage, filesystem, filesets, 
+def get_mmrepquota_maps(quota_map, storage, filesystem, filesets,
                         replication_factor=1, metadata_replication_factor=2):
     """Obtain the quota information.
 
@@ -281,20 +281,20 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
                       fileset_name, filesystem, quota.blockGrace, block_expired)
 
         # XXX: We do NOT divide by the metatadata_replication_factor (yet), since we do not
-        #      set the inode quota through the account page. As such, we need to have the exact 
+        #      set the inode quota through the account page. As such, we need to have the exact
         #      usage available for the user -- this is the same data reported in ES by gpfsbeat.
-        entity.update(fileset_name,
-                      int(quota.blockUsage) // replication_factor,
-                      int(quota.blockQuota) // replication_factor,
-                      int(quota.blockLimit) // replication_factor,
-                      int(quota.blockInDoubt) // replication_factor,
-                      block_expired,
-                      int(quota.filesUsage),
-                      int(quota.filesSoft),
-                      int(quota.filesHard),
-                      int(quota.filesInDoubt),
-                      files_expired,
-                      timestamp)
+        entity.update(fileset=fileset_name,
+                      used=int(quota.blockUsage) // replication_factor,
+                      soft=int(quota.blockQuota) // replication_factor,
+                      hard=int(quota.blockLimit) // replication_factor,
+                      doubt=int(quota.blockInDoubt) // replication_factor,
+                      expired=block_expired,
+                      files_used=int(quota.filesUsage),
+                      files_soft=int(quota.filesSoft),
+                      files_hard=int(quota.filesHard),
+                      files_boudt=int(quota.filesInDoubt),
+                      files_expired=files_expired,
+                      timestamp=timestamp)
 
     return entity
 
