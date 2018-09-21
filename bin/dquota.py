@@ -93,7 +93,6 @@ def main():
             logger.info("Processing quota for storage_name %s" % (storage_name))
             filesystem = storage[storage_name].filesystem
             replication_factor = storage[storage_name].data_replication_factor
-            metadata_replication_factor = storage[storage_name].metadata_replication_factor
 
             if filesystem not in filesystems:
                 logger.error("Non-existent filesystem %s" % (filesystem))
@@ -109,7 +108,6 @@ def main():
                 filesystem,
                 filesets,
                 replication_factor,
-                metadata_replication_factor,
             )
 
             exceeding_filesets[storage_name] = process_fileset_quota(
