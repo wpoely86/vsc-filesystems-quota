@@ -430,7 +430,7 @@ def process_inodes_information(filesets, quota, threshold=0.9):
         maxinodes = int(fs_info['maxInodes'])
         used = int(quota[fs_key][0].filesUsage)
 
-        if used > threshold * maxinodes:
+        if maxinodes > 0 and used > threshold * maxinodes:
             critical_filesets[fs_info['filesetName']] = InodeCritical(used=used, allocated=allocated,
                                                                       maxinodes=maxinodes)
 
