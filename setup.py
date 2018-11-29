@@ -31,7 +31,7 @@ PACKAGE = {
         'vsc-accountpage-clients',
         'vsc-administration >= 0.35',
         'vsc-base >= 2.5.1',
-        'vsc-config >= 1.36.0',
+        'vsc-config >= 2.0.2',
         'vsc-filesystems >= 0.30',
         'vsc-utils >= 1.8.5',
         'vsc-ldap >= 1.4',
