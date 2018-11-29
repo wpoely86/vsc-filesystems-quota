@@ -38,7 +38,7 @@ import time
 
 from collections import namedtuple
 
-from vsc.config.base import GENT_VO_PREFIX, GENT_VO_SHARED_PREFIX, STORAGE_SHARED_SUFFIX
+from vsc.config.base import GENT_VO_PREFIX, GENT_VO_SHARED_PREFIX, STORAGE_SHARED_SUFFIX, GENT
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.mail import VscMail
 
@@ -146,7 +146,7 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     del gpfs
 
     exceeding_users = []
-    path_template = storage.path_templates[storage_name]
+    path_template = storage.path_templates[GENT][storage_name]
 
     push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
 
