@@ -34,7 +34,7 @@ import os
 import vsc.filesystem.quota.tools as tools
 import vsc.config.base as config
 
-from vsc.config.base import VSC_DATA, VscStorage
+from vsc.config.base import VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.filesystem.quota.tools import push_vo_quota_to_django, DjangoPusher, QUOTA_USER_KIND
 from vsc.install.testing import TestCase
@@ -72,7 +72,7 @@ class TestProcessing(TestCase):
         quota.update('vsc400', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
         quota.update('gvo00002', used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
 
-        storage = VscStorage()
+        storage = config.VscStorage()
 
         gpfs = mock.MagicMock()
         gpfs.is_symlink.return_value = False
@@ -122,15 +122,15 @@ class TestProcessing(TestCase):
 
         mock_push_quota.assert_called_with(storage_name, quota_map, client, False, filesets, filesystem)
 
-    @mock.patch('vsc.config.base.VscStorage', autospec=True)
-    def test_push_vo_quota_to_django(self, mock_storage):
+    def test_push_vo_quota_to_django(self):
 
         fileset_name = 'gvo00002'
         fileset_id = '1'
         filesystem = 'scratchdelcatty'
         filesets = {filesystem: {fileset_id: {'filesetName': fileset_name}}}
         storage_name = 'VSC_SCRATCH_DELCATTY'
-        quota = QuotaFileset(mock_storage, filesystem, fileset_name)
+        storage = config.VscStorage()
+        quota = QuotaFileset(storage, filesystem, fileset_name)
         quota.update(fileset_name, used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
 
         quota_map = {
