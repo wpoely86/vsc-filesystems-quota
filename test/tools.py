@@ -157,8 +157,13 @@ class TestProcessing(TestCase):
             '1': quota,
         }
 
+        user_map = {
+            2540075: user_name
+        }
+
         client = mock.MagicMock()
-        push_user_quota_to_django(storage_name, quota_map, client, False, filesets, filesystem)
+        path_template = storage.path_templates['gent'][storage_name]
+        push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, False)
 
 
     def test_django_pusher(self):
