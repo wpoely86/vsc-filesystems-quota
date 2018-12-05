@@ -334,7 +334,7 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
             if not user_name or not user_name.startswith('vsc4'):
                 continue
 
-            sanitize_quota_information(path_template['user'][0], quota)
+            sanitize_quota_information(path_template['user'](user_name)[1], quota)
 
             for (fileset, quota_) in quota.quota_map.items():
 
