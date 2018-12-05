@@ -37,6 +37,7 @@ import vsc.config.base as config
 from vsc.config.base import VSC_DATA
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.filesystem.quota.tools import push_vo_quota_to_django, DjangoPusher, QUOTA_USER_KIND
+from vsc.filesystem.quota.tools import push_user_quota_to_django
 from vsc.install.testing import TestCase
 
 config.STORAGE_CONFIGURATION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'filesystem_info.conf')
@@ -139,6 +140,31 @@ class TestProcessing(TestCase):
 
         client = mock.MagicMock()
         push_vo_quota_to_django(storage_name, quota_map, client, False, filesets, filesystem)
+
+    def test_push_user_quota_to_django(self):
+
+        fileset_name = 'vsc400'
+        user_name = 'vdc40075'
+        fileset_id = '1'
+        filesystem = 'kyukondata'
+        filesets = {filesystem: {fileset_id: {'filesetName': fileset_name}}}
+        storage_name = 'VSC_DATA'
+        storage = config.VscStorage()
+        quota = QuotaUser(storage, filesystem, user_name)
+        quota.update(fileset_name, used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
+
+        quota_map = {
+            '1': quota,
+        }
+
+        user_map = {
+            2540075: user_name
+        }
+
+        client = mock.MagicMock()
+        path_template = storage.path_templates['gent'][storage_name]
+        push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, False)
+
 
     def test_django_pusher(self):
 
