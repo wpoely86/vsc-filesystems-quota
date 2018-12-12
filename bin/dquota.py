@@ -107,7 +107,7 @@ def main():
                 storage_name,
                 filesystem,
                 filesets,
-                replication_factor
+                replication_factor,
             )
 
             exceeding_filesets[storage_name] = process_fileset_quota(
