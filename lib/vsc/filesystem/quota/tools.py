@@ -237,13 +237,13 @@ def determine_grace_period(grace_string):
     elif grace:
         grace = grace.groupdict()
         grace_time = 0
-        if grace.get('days', None):
+        if grace['days']:
             grace_time = int(grace['days']) * 86400
-        elif grace.get('hours', None):
+        elif grace['hours']:
             grace_time = int(grace['hours']) * 3600
-        elif grace.get('minutes', None):
+        elif grace['minutes']:
             grace_time = int(grace['minutes']) * 60
-        elif grace.get('expired', None):
+        elif grace['expired']:
             grace_time = 0
         else:
             logging.error("Unprocessed grace groupdict %s (from string %s).",
