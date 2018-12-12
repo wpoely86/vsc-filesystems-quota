@@ -236,18 +236,20 @@ def determine_grace_period(grace_string):
         expired = (False, None)
     elif grace:
         grace = grace.groupdict()
+        grace_time = 0
         if grace.get('days', None):
-            expired = (True, int(grace['days']) * 86400)
+            grace_time = int(grace['days']) * 86400
         elif grace.get('hours', None):
-            expired = (True, int(grace['hours']) * 3600)
+            grace_time = int(grace['hours']) * 3600
         elif grace.get('minutes', None):
-            expired = (True, int(grace['minutes']) * 60)
+            grace_time = int(grace['minutes']) * 60
         elif grace.get('expired', None):
-            expired = (True, 0)
+            grace_time = 0
         else:
             logging.error("Unprocessed grace groupdict %s (from string %s).",
                           grace, grace_string)
             raise QuotaException("Cannot process grace time string")
+        expired = (True, grace_time)
     else:
         logging.error("Unknown grace string %s.", grace_string)
         raise QuotaException("Cannot process grace information (%s)" % grace_string)
