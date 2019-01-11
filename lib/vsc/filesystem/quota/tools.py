@@ -1,5 +1,5 @@
 #
-# Copyright 2015-2018 Ghent University
+# Copyright 2015-2019 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -292,9 +292,9 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
                       doubt=int(quota.blockInDoubt) // replication_factor,
                       expired=block_expired,
                       files_used=int(quota.filesUsage),
-                      files_soft=int(quota.filesSoft),
-                      files_hard=int(quota.filesHard),
-                      files_boudt=int(quota.filesInDoubt),
+                      files_soft=int(quota.filesQuota),
+                      files_hard=int(quota.filesLimit),
+                      files_doubt=int(quota.filesInDoubt),
                       files_expired=files_expired,
                       timestamp=timestamp)
 
