@@ -40,7 +40,7 @@ import sys
 
 
 from vsc.accountpage.client import AccountpageClient
-from vsc.config.base import VscStorage
+from vsc.config.base import VscStorage, GENT
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
 from vsc.filesystem.quota.tools import process_user_quota, process_fileset_quota
@@ -64,6 +64,7 @@ def main():
         'write-cache': ('Write the data into the cache files in the FS', None, 'store_true', False),
         'account_page_url': ('Base URL of the account page', None, 'store', 'https://account.vscentrum.be/django'),
         'access_token': ('OAuth2 token to access the account page REST API', None, 'store', None),
+        'host_institute': ('Name of the institute where this script is being run', str, 'store', GENT),
     }
     opts = ExtendedSimpleOption(options)
     logger = opts.log
@@ -77,13 +78,13 @@ def main():
 
         target_filesystems = [storage[s].filesystem for s in opts.options.storage]
 
-        filesystems = gpfs.list_filesystems(target_filesystems).keys()
+        filesystems = gpfs.list_filesystems(device=target_filesystems).keys()
         logger.debug("Found the following GPFS filesystems: %s" % (filesystems))
 
-        filesets = gpfs.list_filesets()
+        filesets = gpfs.list_filesets(device=target_filesystems)
         logger.debug("Found the following GPFS filesets: %s" % (filesets))
 
-        quota = gpfs.list_quota()
+        quota = gpfs.list_quota(device=target_filesystems)
         exceeding_filesets = {}
         exceeding_users = {}
         stats = {}
@@ -112,10 +113,11 @@ def main():
 
             exceeding_filesets[storage_name] = process_fileset_quota(
                 storage, gpfs, storage_name, filesystem, quota_storage_map['FILESET'],
-                client, opts.options.dry_run)
+                client, dry_run=opts.options.dry_run, institute=opts.options.host_institute)
+
             exceeding_users[storage_name] = process_user_quota(
                 storage, gpfs, storage_name, None, quota_storage_map['USR'],
-                user_id_map, client, opts.options.dry_run)
+                user_id_map, client, dry_run=opts.options.dry_run, institute=opts.options.host_institute)
 
             stats["%s_fileset_critical" % (storage_name,)] = QUOTA_FILESETS_CRITICAL
             if exceeding_filesets[storage_name]:
@@ -140,12 +142,13 @@ def main():
                 stats["%s_users" % (storage_name,)] = 0
                 logger.debug("storage_name %s found no users who are exceeding their quota" % storage_name)
 
-    except Exception, err:
+    except Exception as err:
         logger.exception("critical exception caught: %s" % (err))
         opts.critical("Script failed in a horrible way")
         sys.exit(NAGIOS_EXIT_CRITICAL)
 
     opts.epilogue("quota check completed", stats)
+
 
 if __name__ == '__main__':
     main()
