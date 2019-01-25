@@ -81,10 +81,10 @@ def main():
         filesystems = gpfs.list_filesystems(device=target_filesystems).keys()
         logger.debug("Found the following GPFS filesystems: %s" % (filesystems))
 
-        filesets = gpfs.list_filesets(device=target_filesystems)
+        filesets = gpfs.list_filesets(devices=target_filesystems)
         logger.debug("Found the following GPFS filesets: %s" % (filesets))
 
-        quota = gpfs.list_quota(device=target_filesystems)
+        quota = gpfs.list_quota(devices=target_filesystems)
         exceeding_filesets = {}
         exceeding_users = {}
         stats = {}
