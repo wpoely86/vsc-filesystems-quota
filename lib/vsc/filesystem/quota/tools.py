@@ -110,7 +110,7 @@ class DjangoPusher(object):
 
     def push(self, storage_name, payload):
         if storage_name not in self.payload:
-            logging.error("Adding payload for unknown storage: %s vs %s", storage_name, self.storage_name)
+            logging.error("Can not add payload for unknown storage: %s vs %s", storage_name, self.storage_name)
             return
 
         self.payload[storage_name].append(payload)
@@ -207,14 +207,13 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
 
             fileset_name = path_template['user'](user_name)[1]
 
-            for (fileset, quota_) in quota.quota_map.items():
-                if not re.match('^vsc[1-4]', fileset) and \
-                   not fileset.startswith(VO_PREFIX_BY_SITE[institute]) and \
-                   not fileset.startswith(VO_SHARED_PREFIX_BY_SITE[institute]) and \
-                   not fileset.startswith(fileset_name):
-                    continue
+            fileset_re = '^(vsc[1-4]|%s|%s|%s)' % (VO_PREFIX_BY_SITE[institute],
+                                                   VO_SHARED_PREFIX_BY_SITE[institute],
+                                                   fileset_name)
 
-                pusher.push_quota(user_name, fileset, quota_)
+            for (fileset, quota_) in quota.quota_map.items():
+                if re.search(fileset_re, fileset):
+                    pusher.push_quota(user_name, fileset, quota_)
 
             if quota.exceeds():
                 exceeding_users.append((user_name, quota))
@@ -238,7 +237,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
     del client
     del store_cache
     del dry_run
-    logging.warning("The %s function has been deprecated and should not longer be used." % inspect.stack()[0][3])
+    logging.warning("The %s function has been deprecated and should not longer be used.", inspect.stack()[0][3])
     pass
 
 
@@ -333,7 +332,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
     @type replication_factor: int, describing the number of copies the FS holds for each file
     """
     for quota in gpfs_quotas:
-        logging.debug("gpfs_quota = %s", str(quota))
+        logging.debug("gpfs_quota = %s", quota)
 
         block_expired = determine_grace_period(quota.blockGrace)
         files_expired = determine_grace_period(quota.filesGrace)
