@@ -145,7 +145,7 @@ def main():
     except Exception as err:
         logger.exception("critical exception caught: %s" % (err))
         opts.critical("Script failed in a horrible way")
-        sys.exit(NAGIOS_EXIT_CRITICAL)
+        sys.exit(NAGIOS_EXIT_CRITICAL[0])
 
     opts.epilogue("quota check completed", stats)
 

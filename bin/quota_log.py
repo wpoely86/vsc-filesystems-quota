@@ -89,7 +89,7 @@ def main():
     except Exception:
         logger.exception("Failure obtaining GPFS quota")
         opts.critical("Failure to obtain GPFS quota information")
-        sys.exit(NAGIOS_EXIT_CRITICAL)
+        sys.exit(NAGIOS_EXIT_CRITICAL[0])
 
     opts.epilogue("Logged GPFS quota", stats)
 

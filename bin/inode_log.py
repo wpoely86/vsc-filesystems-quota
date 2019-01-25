@@ -103,7 +103,7 @@ def main():
     except Exception:
         logger.exception("Failure obtaining GPFS inodes")
         opts.critical("Failure to obtain GPFS inodes information")
-        sys.exit(NAGIOS_EXIT_CRITICAL)
+        sys.exit(NAGIOS_EXIT_CRITICAL[0])
 
     opts.epilogue("Logged GPFS inodes", stats)
 
