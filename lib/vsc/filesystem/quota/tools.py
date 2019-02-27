@@ -371,7 +371,7 @@ def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, 
                     "files_hard": quota_.files_hard,
                     "files_doubt": quota_.files_doubt,
                     "files_expired": quota_.files_expired[0],
-                    "files_remaining": quota_.files_expired[1],  # seconds
+                    "files_remaining": quota_.files_expired[1] or 0,  # seconds
                 }
                 pusher.push(storage_name, params)
 
@@ -415,7 +415,7 @@ def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, file
                     "files_hard": quota_.files_hard,
                     "files_doubt": quota_.files_doubt,
                     "files_expired": quota_.files_expired[0],
-                    "files_remaining": quota_.files_expired[1], # seconds
+                    "files_remaining": quota_.files_expired[1] or 0,  # seconds
                 }
                 pusher.push(derived_storage_name, params)
 
