@@ -137,7 +137,7 @@ def main():
                 stats["%s_users" % (storage_name,)] = 0
                 logger.debug("storage_name %s found no users who are exceeding their quota" % storage_name)
 
-    except Exception, err:
+    except Exception as err:
         logger.exception("critical exception caught: %s" % (err))
         opts.critical("Script failed in a horrible way")
 
