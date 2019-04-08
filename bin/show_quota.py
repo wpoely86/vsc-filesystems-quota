@@ -36,13 +36,14 @@ the account page for cache quota information (with an accuracy of 10 minutes).
 
 @author: Andy Georges (Ghent University)
 """
+from __future__ import print_function
 
 def main():
 
-    print "Please consult the VSC account page for quota information at"
-    print "https://account.vscentrum.be\n\n"
-    print "If you are a VO moderator, you can find the VO quota for all members at"
-    print "https://account.vscentrum.be/django/vo/"
+    print("Please consult the VSC account page for quota information at")
+    print("https://account.vscentrum.be\n\n")
+    print("If you are a VO moderator, you can find the VO quota for all members at")
+    print("https://account.vscentrum.be/django/vo/")
 
 if __name__ == '__main__':
     main()
