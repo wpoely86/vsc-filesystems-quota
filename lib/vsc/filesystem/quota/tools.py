@@ -8,7 +8,7 @@
 # the Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# https://github.ugent.be/hpcugent/vsc-filesystems-quota
+# https://github.com/hpcugent/vsc-filesystems-quota
 #
 # vsc-filesystems-quota is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Library General Public License as
