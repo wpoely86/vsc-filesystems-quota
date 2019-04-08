@@ -33,12 +33,9 @@ in a zip file, named by date and filesystem.
 import gzip
 import json
 import os
-import sys
 import time
 
-
 from vsc.filesystem.gpfs import GpfsOperations
-from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
 # Constants
@@ -70,7 +67,7 @@ def main():
         quota = gpfs.list_quota()
 
         if not os.path.exists(opts.options.location):
-            os.makedirs(opts.options.location, 0755)
+            os.makedirs(opts.options.location, 0o755)
 
         critical_filesets = dict()
 
@@ -103,7 +100,6 @@ def main():
     except Exception:
         logger.exception("Failure obtaining GPFS inodes")
         opts.critical("Failure to obtain GPFS inodes information")
-        sys.exit(NAGIOS_EXIT_CRITICAL)
 
     opts.epilogue("Logged GPFS inodes", stats)
 
