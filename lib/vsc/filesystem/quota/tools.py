@@ -39,8 +39,7 @@ import time
 
 from collections import namedtuple
 
-from vsc.config.base import STORAGE_SHARED_SUFFIX, GENT, VSC
-from vsc.config.base import VO_PREFIX_BY_SITE, VO_SHARED_PREFIX_BY_SITE
+from vsc.config.base import GENT, STORAGE_SHARED_SUFFIX, VO_PREFIX_BY_SITE, VO_SHARED_PREFIX_BY_SITE, VSC
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.mail import VscMail
 
