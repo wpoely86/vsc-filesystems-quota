@@ -10,7 +10,7 @@
 # the Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# https://github.ugent.be/hpcugent/vsc-filesystems-quota
+# https://github.com/hpcugent/vsc-filesystems-quota
 #
 # vsc-filesystems-quota is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Library General Public License as
@@ -36,13 +36,14 @@ the account page for cache quota information (with an accuracy of 10 minutes).
 
 @author: Andy Georges (Ghent University)
 """
+from __future__ import print_function
 
 def main():
 
-    print "Please consult the VSC account page for quota information at"
-    print "https://account.vscentrum.be\n\n"
-    print "If you are a VO moderator, you can find the VO quota for all members at"
-    print "https://account.vscentrum.be/django/vo/"
+    print("Please consult the VSC account page for quota information at")
+    print("https://account.vscentrum.be\n\n")
+    print("If you are a VO moderator, you can find the VO quota for all members at")
+    print("https://account.vscentrum.be/django/vo/")
 
 if __name__ == '__main__':
     main()

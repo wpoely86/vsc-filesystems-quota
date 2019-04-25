@@ -9,7 +9,7 @@
 # the Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# https://github.ugent.be/hpcugent/vsc-filesystems-quota
+# https://github.com/hpcugent/vsc-filesystems-quota
 #
 # vsc-filesystems-quota is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Library General Public License as
@@ -33,12 +33,10 @@ in a zip file, named by date and filesystem.
 import gzip
 import json
 import os
-import sys
 import time
 
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.utils import fancylogger
-from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
 # Constants
@@ -71,7 +69,7 @@ def main():
         quota = gpfs.list_quota()
 
         if not os.path.exists(opts.options.location):
-            os.makedirs(opts.options.location, 0755)
+            os.makedirs(opts.options.location, 0o755)
 
         for key in quota:
             stats["%s_quota_log_critical" % (key,)] = QUOTA_STORE_LOG_CRITICAL
@@ -89,7 +87,6 @@ def main():
     except Exception:
         logger.exception("Failure obtaining GPFS quota")
         opts.critical("Failure to obtain GPFS quota information")
-        sys.exit(NAGIOS_EXIT_CRITICAL)
 
     opts.epilogue("Logged GPFS quota", stats)
 

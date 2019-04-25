@@ -9,7 +9,7 @@
 # the Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# https://github.ugent.be/hpcugent/vsc-filesystems-quota
+# https://github.com/hpcugent/vsc-filesystems-quota
 #
 # vsc-filesystems-quota is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Library General Public License as
@@ -36,15 +36,12 @@ Script to check for quota transgressions and notify the offending users.
 
 @author Andy Georges
 """
-import sys
-
 
 from vsc.accountpage.client import AccountpageClient
 from vsc.config.base import VscStorage
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.filesystem.quota.tools import get_mmrepquota_maps, map_uids_to_names
 from vsc.filesystem.quota.tools import process_user_quota, process_fileset_quota
-from vsc.utils.nagios import NAGIOS_EXIT_CRITICAL
 from vsc.utils.script_tools import ExtendedSimpleOption
 
 # Constants
@@ -140,10 +137,9 @@ def main():
                 stats["%s_users" % (storage_name,)] = 0
                 logger.debug("storage_name %s found no users who are exceeding their quota" % storage_name)
 
-    except Exception, err:
+    except Exception as err:
         logger.exception("critical exception caught: %s" % (err))
         opts.critical("Script failed in a horrible way")
-        sys.exit(NAGIOS_EXIT_CRITICAL)
 
     opts.epilogue("quota check completed", stats)
 
