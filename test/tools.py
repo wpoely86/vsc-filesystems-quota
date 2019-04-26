@@ -27,17 +27,17 @@
 Tests for all helper functions in vsc.filesystems.quota.tools.
 
 @author: Andy Georges (Ghent University)
+@author: Ward Poelmans (Free University of Brussels)
 """
-import mock
 import os
+import mock
 
 import vsc.filesystem.quota.tools as tools
 import vsc.config.base as config
 
-from vsc.config.base import VSC_DATA
-from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
-from vsc.filesystem.quota.tools import push_vo_quota_to_django, DjangoPusher, QUOTA_USER_KIND
-from vsc.filesystem.quota.tools import push_user_quota_to_django, determine_grace_period
+from vsc.config.base import VSC_DATA, GENT
+from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset, QuotaInformation
+from vsc.filesystem.quota.tools import DjangoPusher, determine_grace_period, QUOTA_USER_KIND
 from vsc.install.testing import TestCase
 
 config.STORAGE_CONFIGURATION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'filesystem_info.conf')
@@ -73,8 +73,8 @@ class TestAuxiliary(TestCase):
 
 class TestProcessing(TestCase):
 
-    @mock.patch('vsc.filesystem.quota.tools.push_user_quota_to_django')
-    def test_process_user_quota_no_store(self, mock_push_quota):
+    @mock.patch.object(DjangoPusher, 'push_quota')
+    def test_process_user_quota_no_store(self, mock_django_pusher):
 
         storage_name = VSC_DATA
         item = 'vsc40075'
@@ -85,24 +85,29 @@ class TestProcessing(TestCase):
 
         storage = config.VscStorage()
 
-        gpfs = mock.MagicMock()
-        gpfs.is_symlink.return_value = False
-
         client = mock.MagicMock()
 
-        quota_map = {'2540075': quota}
-        user_map = {2540075: 'vsc40075'}
+        quota_map = {
+            '2540075': quota,
+            '2510042': None,  # should be skipped
+        }
+        user_map = {
+            2540075: 'vsc40075',
+            2510042: 'vsc10042',
+        }
 
         tools.process_user_quota(
-            storage, gpfs, storage_name, None, quota_map, user_map, client, dry_run=False
+            storage, None, storage_name, None, quota_map, user_map, client, dry_run=False, institute=GENT
         )
 
-        mock_push_quota.assert_called_with(
-            user_map, storage_name, storage.path_templates['gent'][storage_name], quota_map, client, False
+        self.assertEqual(mock_django_pusher.call_count, 2)
+
+        mock_django_pusher.assert_has_calls(
+            [mock.call('vsc40075', fileset, quota.quota_map[fileset]) for fileset in ['gvo00002', 'vsc400']]
         )
 
-    @mock.patch('vsc.filesystem.quota.tools.push_vo_quota_to_django')
-    def test_process_fileset_quota_no_store(self, mock_push_quota):
+    @mock.patch.object(DjangoPusher, 'push_quota')
+    def test_process_fileset_quota_no_store(self, mock_django_pusher):
 
         storage_name = VSC_DATA
         filesystem = 'vulpixdata'
@@ -128,60 +133,76 @@ class TestProcessing(TestCase):
         quota_map = {fileset: quota}
 
         tools.process_fileset_quota(
-            storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False
+            storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False, institute=GENT
         )
 
-        mock_push_quota.assert_called_with(storage_name, quota_map, client, False, filesets, filesystem)
-
-    def test_push_vo_quota_to_django(self):
-
-        fileset_name = 'gvo00002'
-        fileset_id = '1'
-        filesystem = 'scratchdelcatty'
-        filesets = {filesystem: {fileset_id: {'filesetName': fileset_name}}}
-        storage_name = 'VSC_SCRATCH_DELCATTY'
-        storage = config.VscStorage()
-        quota = QuotaFileset(storage, filesystem, fileset_name)
-        quota.update(fileset_name, used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
-
-        quota_map = {
-            '1': quota,
-        }
-
-        client = mock.MagicMock()
-        push_vo_quota_to_django(storage_name, quota_map, client, False, filesets, filesystem)
-
-    def test_push_user_quota_to_django(self):
-
-        fileset_name = 'vsc400'
-        user_name = 'vdc40075'
-        fileset_id = '1'
-        filesystem = 'kyukondata'
-        filesets = {filesystem: {fileset_id: {'filesetName': fileset_name}}}
-        storage_name = 'VSC_DATA'
-        storage = config.VscStorage()
-        quota = QuotaUser(storage, filesystem, user_name)
-        quota.update(fileset_name, used=1230, soft=456, hard=789, doubt=0, expired=(False, None), timestamp=None)
-
-        quota_map = {
-            '1': quota,
-        }
-
-        user_map = {
-            2540075: user_name
-        }
-
-        client = mock.MagicMock()
-        path_template = storage.path_templates['gent'][storage_name]
-        push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, False)
-
+        mock_django_pusher.assert_called_once_with('gvo00002', 'gvo00002', quota.quota_map['gvo00002'], shared=False)
 
     def test_django_pusher(self):
 
         client = mock.MagicMock()
 
         with DjangoPusher("my_storage", client, QUOTA_USER_KIND, False) as pusher:
-            for i in xrange(0, 101):
+            for i in range(0, 101):
                 pusher.push("my_storage", "pushing %d" % i)
 
             self.assertEqual(pusher.payload, {"my_storage": [], "my_storage_SHARED": []})
+
+    def test_django_push_quota(self):
+
+        client = mock.MagicMock()
+
+        quota_info = QuotaInformation(
+            timestamp=None,
+            used=1230,
+            soft=456,
+            hard=789,
+            doubt=0,
+            expired=(False, None),
+            files_used=130,
+            files_soft=380,
+            files_hard=560,
+            files_doubt=0,
+            files_expired=(False, None),
+        )
+
+        with DjangoPusher("my_storage", client, QUOTA_USER_KIND, False) as pusher:
+            pusher.push_quota('vsc10001', 'vsc100', quota_info, shared=False)
+
+            self.assertEqual(pusher.payload["my_storage"][0], {
+                'fileset': 'vsc100',
+                'used': 1230,
+                'soft': 456,
+                'hard': 789,
+                'doubt': 0,
+                'expired': False,
+                'remaining': 0,
+                'files_used': 130,
+                'files_soft': 380,
+                'files_hard': 560,
+                'files_doubt': 0,
+                'files_expired': False,
+                'files_remaining': 0,
+                'user': 'vsc10001',
+            })
+
+            self.assertEqual(pusher.payload["my_storage_SHARED"], [])
+
+            pusher.push_quota('vsc10001', 'vsc100', quota_info, shared=True)
+
+            self.assertEqual(pusher.payload["my_storage_SHARED"][0], {
+                'fileset': 'vsc100',
+                'used': 1230,
+                'soft': 456,
+                'hard': 789,
+                'doubt': 0,
+                'expired': False,
+                'remaining': 0,
+                'files_used': 130,
+                'files_soft': 380,
+                'files_hard': 560,
+                'files_doubt': 0,
+                'files_expired': False,
+                'files_remaining': 0,
+                'user': 'vsc10001',
+            })

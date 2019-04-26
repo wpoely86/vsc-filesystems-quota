@@ -27,6 +27,7 @@
 Helper functions for all things quota related.
 
 @author: Andy Georges (Ghent University)
+@author: Ward Poelmans (Free University of Brussels)
 """
 
 import inspect
@@ -38,7 +39,7 @@ import time
 
 from collections import namedtuple
 
-from vsc.config.base import GENT_VO_PREFIX, GENT_VO_SHARED_PREFIX, STORAGE_SHARED_SUFFIX, GENT
+from vsc.config.base import GENT, STORAGE_SHARED_SUFFIX, VO_PREFIX_BY_SITE, VO_SHARED_PREFIX_BY_SITE, VSC
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.mail import VscMail
 
@@ -76,7 +77,7 @@ class DjangoPusher(object):
 
     def __init__(self, storage_name, client, kind, dry_run):
         self.storage_name = storage_name
-        self.storage_name_shared = storage_name + "_SHARED"
+        self.storage_name_shared = storage_name + STORAGE_SHARED_SUFFIX
         self.client = client
         self.kind = kind
         self.dry_run = dry_run
@@ -107,6 +108,10 @@ class DjangoPusher(object):
         return True
 
     def push(self, storage_name, payload):
+        if storage_name not in self.payload:
+            logging.error("Can not add payload for unknown storage: %s vs %s", storage_name, self.storage_name)
+            return
+
         self.payload[storage_name].append(payload)
         self.count[storage_name] += 1
 
@@ -115,11 +120,46 @@ class DjangoPusher(object):
             self.count[storage_name] = 0
             self.payload[storage_name] = []
 
+    def push_quota(self, owner, fileset, quota, shared=False):
+        """
+        Push quota to accountpage: it belongs to owner (can either be user_id or vo_id),
+        in the given fileset and quota.
+        :param owner: the name of the user or VO to which the quota belongs
+        :param fileset: fileset name
+        :param quota: actual quota data
+        :param shared: is this a shared user/VO quota or not?
+        """
+        params = {
+            "fileset": fileset,
+            "used": quota.used,
+            "soft": quota.soft,
+            "hard": quota.hard,
+            "doubt": quota.doubt,
+            "expired": quota.expired[0],
+            "remaining": quota.expired[1] or 0,  # seconds
+            "files_used": quota.files_used,
+            "files_soft": quota.files_soft,
+            "files_hard": quota.files_hard,
+            "files_doubt": quota.files_doubt,
+            "files_expired": quota.files_expired[0],
+            "files_remaining": quota.files_expired[1] or 0,  # seconds
+        }
+
+        if self.kind == QUOTA_USER_KIND:
+            params['user'] = owner
+        elif self.kind == QUOTA_VO_KIND:
+            params['vo'] = owner
+
+        if shared:
+            self.push(self.storage_name_shared, params)
+        else:
+            self.push(self.storage_name, params)
+
     def _push(self, storage_name, payload):
         """Does the actual pushing to the REST API"""
 
         if self.dry_run:
-            logging.info("Would push payload to account web app: %s" % (payload,))
+            logging.info("Would push payload to account web app: %s", payload)
         else:
             try:
                 cl = self.client.usage.storage[storage_name]
@@ -138,7 +178,8 @@ class DjangoPusher(object):
                 raise
 
 
-def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client, dry_run=False):
+def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_map, client,
+                       dry_run=False, institute=GENT):
     """
     Wrapper around the new function to keep the old behaviour intact.
     """
@@ -146,14 +187,35 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     del gpfs
 
     exceeding_users = []
-    path_template = storage.path_templates[GENT][storage_name]
+    path_template = storage.path_templates[institute][storage_name]
+    vsc = VSC()
 
-    push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run)
+    logging.info("Logging user quota to account page")
+    logging.debug("Considering the following quota items for pushing: %s", quota_map)
 
-    for (user_id, quota) in quota_map.items():
-        user_name = user_map.get(int(user_id), None)
-        if user_name and user_name.startswith('vsc4') and quota.exceeds():
-            exceeding_users.append((user_name, quota))
+    with DjangoPusher(storage_name, client, QUOTA_USER_KIND, dry_run) as pusher:
+        for (user_id, quota) in quota_map.items():
+
+            user_institute = vsc.user_id_to_institute(int(user_id))
+            if user_institute != institute:
+                continue
+
+            user_name = user_map.get(int(user_id), None)
+            if not user_name:
+                continue
+
+            fileset_name = path_template['user'](user_name)[1]
+
+            fileset_re = '^(vsc[1-4]|%s|%s|%s)' % (VO_PREFIX_BY_SITE[institute],
+                                                   VO_SHARED_PREFIX_BY_SITE[institute],
+                                                   fileset_name)
+
+            for (fileset, quota_) in quota.quota_map.items():
+                if re.search(fileset_re, fileset):
+                    pusher.push_quota(user_name, fileset, quota_)
+
+            if quota.exceeds():
+                exceeding_users.append((user_name, quota))
 
     return exceeding_users
 
@@ -174,7 +236,7 @@ def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, q
     del client
     del store_cache
     del dry_run
-    logging.warning("The %s function has been deprecated and should not longer be used." % inspect.stack()[0][3])
+    logging.warning("The %s function has been deprecated and should not longer be used.", inspect.stack()[0][3])
     pass
 
 
@@ -269,7 +331,7 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
     @type replication_factor: int, describing the number of copies the FS holds for each file
     """
     for quota in gpfs_quotas:
-        logging.debug("gpfs_quota = %s" % (str(quota)))
+        logging.debug("gpfs_quota = %s", quota)
 
         block_expired = determine_grace_period(quota.blockGrace)
         files_expired = determine_grace_period(quota.filesGrace)
@@ -301,22 +363,35 @@ def _update_quota_entity(filesets, entity, filesystem, gpfs_quotas, timestamp, r
     return entity
 
 
-def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False):
+def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, client, dry_run=False, institute=GENT):
     """wrapper around the new function to keep the old behaviour intact"""
     del storage
     filesets = gpfs.list_filesets()
     exceeding_filesets = []
 
-    push_vo_quota_to_django(storage_name, quota_map, client, dry_run, filesets, filesystem)
+    logging.info("Logging VO quota to account page")
+    logging.debug("Considering the following quota items for pushing: %s", quota_map)
 
-    logging.debug("filesets = %s", filesets)
+    with DjangoPusher(storage_name, client, QUOTA_VO_KIND, dry_run) as pusher:
+        for (fileset, quota) in quota_map.items():
+            fileset_name = filesets[filesystem][fileset]['filesetName']
+            logging.debug("Fileset %s quota: %s", fileset_name, quota)
 
-    for (fileset, quota) in quota_map.items():
-        fileset_name = filesets[filesystem][fileset]['filesetName']
-        logging.debug("Fileset %s quota: %s", fileset_name, quota)
+            if not fileset_name.startswith(VO_PREFIX_BY_SITE[institute]):
+                continue
 
-        if quota.exceeds():
-            exceeding_filesets.append((fileset_name, quota))
+            if fileset_name.startswith(VO_SHARED_PREFIX_BY_SITE[institute]):
+                vo_name = fileset_name.replace(VO_SHARED_PREFIX_BY_SITE[institute], VO_PREFIX_BY_SITE[institute])
+                shared = True
+            else:
+                vo_name = fileset_name
+                shared = False
+
+            for (fileset_, quota_) in quota.quota_map.items():
+                pusher.push_quota(vo_name, fileset_, quota_, shared=shared)
+
+            if quota.exceeds():
+                exceeding_filesets.append((fileset_name, quota))
 
     return exceeding_filesets
 
@@ -335,105 +410,8 @@ def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem
     del client
     del store_cache
     del dry_run
-    logging.warning("The %s function has been deprecated and should not longer be used." % inspect.stack()[0][3])
+    logging.warning("The %s function has been deprecated and should not longer be used.", inspect.stack()[0][3])
     pass
-
-
-def push_user_quota_to_django(user_map, storage_name, path_template, quota_map, client, dry_run=False):
-    """
-    Upload the quota information to the account page, so it can be displayed for the users in the web application.
-    """
-    logging.info("Logging user quota to account page")
-    logging.debug("Considering the following quota items for pushing: %s", quota_map)
-
-    with DjangoPusher(storage_name, client, QUOTA_USER_KIND, dry_run) as pusher:
-        for (user_id, quota) in quota_map.items():
-
-            user_name = user_map.get(int(user_id), None)
-            if not user_name or not user_name.startswith('vsc4'):
-                continue
-
-            sanitize_quota_information(path_template['user'](user_name)[1], quota)
-
-            for (fileset, quota_) in quota.quota_map.items():
-
-                params = {
-                    "fileset": fileset,
-                    "user": user_name,
-                    "used": quota_.used,
-                    "soft": quota_.soft,
-                    "hard": quota_.hard,
-                    "doubt": quota_.doubt,
-                    "expired": quota_.expired[0],
-                    "remaining": quota_.expired[1] or 0,  # seconds
-                    "files_used": quota_.files_used,
-                    "files_soft": quota_.files_soft,
-                    "files_hard": quota_.files_hard,
-                    "files_doubt": quota_.files_doubt,
-                    "files_expired": quota_.files_expired[0],
-                    "files_remaining": quota_.files_expired[1] or 0,  # seconds
-                }
-                pusher.push(storage_name, params)
-
-
-def push_vo_quota_to_django(storage_name, quota_map, client, dry_run=False, filesets=None, filesystem=None):
-    """
-    Upload the VO usage information to the account page, so it can be displayed in the web interface.
-    """
-    logging.info("Logging VO quota to account page")
-    logging.debug("Considering the following quota items for pushing: %s", quota_map)
-
-    with DjangoPusher(storage_name, client, QUOTA_VO_KIND, dry_run) as pusher:
-
-        for (fileset, quota) in quota_map.items():
-            fileset_name = filesets[filesystem][fileset]['filesetName']
-            logging.debug("Fileset %s quota: %s", fileset_name, quota)
-
-            if not fileset_name.startswith(GENT_VO_PREFIX):
-                continue
-
-            if fileset_name.startswith(GENT_VO_SHARED_PREFIX):
-                derived_vo_name = fileset_name.replace(GENT_VO_SHARED_PREFIX, GENT_VO_PREFIX)
-                derived_storage_name = storage_name + STORAGE_SHARED_SUFFIX
-            else:
-                derived_vo_name = fileset_name
-                derived_storage_name = storage_name
-
-            for (fileset_, quota_) in quota.quota_map.items():
-
-                params = {
-                    "vo": derived_vo_name,
-                    "fileset": fileset_,
-                    "used": quota_.used,
-                    "soft": quota_.soft,
-                    "hard": quota_.hard,
-                    "doubt": quota_.doubt,
-                    "expired": quota_.expired[0],
-                    "remaining": quota_.expired[1] or 0,  # seconds
-                    "files_used": quota_.files_used,
-                    "files_soft": quota_.files_soft,
-                    "files_hard": quota_.files_hard,
-                    "files_doubt": quota_.files_doubt,
-                    "files_expired": quota_.files_expired[0],
-                    "files_remaining": quota_.files_expired[1] or 0,  # seconds
-                }
-                pusher.push(derived_storage_name, params)
-
-
-def sanitize_quota_information(fileset_name, quota):
-    """Sanitize the information that is store at the user's side.
-
-    There should be _no_ information regarding filesets besides:
-        - vscixy (note that on muk, each user had his own fileset, so vsc1, vsc2, and vsc3 prefixes are possible)
-        - gvo*
-        - project
-    """
-    for fileset in quota.quota_map.keys():
-        if not fileset.startswith('vsc') and \
-           not fileset.startswith(GENT_VO_PREFIX) and \
-           not fileset.startswith(GENT_VO_SHARED_PREFIX) and \
-           not fileset.startswith(fileset_name):
-            quota.quota_map.pop(fileset)
 
 
 def map_uids_to_names():
@@ -487,7 +465,7 @@ def mail_admins(critical_filesets, dry_run=True):
     message = message % ({'fileset_info': "\n".join(fileset_info)})
 
     if dry_run:
-        logging.info("Would have sent this message: %s" % (message,))
+        logging.info("Would have sent this message: %s", message)
     else:
         mail.sendTextMail(mail_to="hpc-admin@lists.ugent.be",
                           mail_from="hpc-admin@lists.ugent.be",
