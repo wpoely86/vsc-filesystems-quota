@@ -103,7 +103,7 @@ class TestProcessing(TestCase):
         self.assertEqual(mock_django_pusher.call_count, 2)
 
         mock_django_pusher.assert_has_calls(
-            [mock.call('vsc40075', fileset, quota.quota_map[fileset]) for fileset in ['gvo00002', 'vsc400']]
+            [mock.call('vsc40075', fileset, quota.quota_map[fileset]) for fileset in ['vsc400', 'gvo00002']]
         )
 
     @mock.patch.object(DjangoPusher, 'push_quota')
