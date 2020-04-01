@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2019 Ghent University
+# Copyright 2018-2020 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,3 +23,5 @@
 # You should have received a copy of the GNU Library General Public License
 # along with vsc-filesystems-quota. If not, see <http://www.gnu.org/licenses/>.
 #
+"""
+"""
