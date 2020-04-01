@@ -23,25 +23,19 @@ import vsc.install.shared_setup as shared_setup
 from vsc.install.shared_setup import ag
 
 PACKAGE = {
-    'version': '0.14.0',
+    'version': '1.0.0',
     'author': [ag],
     'maintainer': [ag],
     'excluded_pkgs_rpm': ['vsc', 'vsc.filesystem', 'vsc.filesystem.quota'],
+    'setup_requires': ['vsc-install >= 0.15.3'],
     'install_requires': [
-        'vsc-accountpage-clients',
-        'vsc-base >= 2.5.1',
-        'vsc-config >= 2.0.2',
-        'vsc-filesystems >= 0.37.1',
-        'vsc-utils >= 1.8.5',
+        'vsc-accountpage-clients >= 2.0.0',
+        'vsc-base >= 3.0.4',
+        'vsc-config >= 3.0.0',
+        'vsc-filesystems >= 1.0.1',
+        'vsc-utils >= 2.0.0',
     ],
     'tests_require': ['mock'],
-    'dependency_links': [
-        "git+https://github.com/hpcugent/vsc-utils.git#egg=vsc-utils-1.8.5",
-        "git+https://github.com/hpcugent/vsc-filesystems.git#egg=vsc-filesystems-0.37.1",
-        "git+ssh://github.com/hpcugent/vsc-accountpage-clients.git#egg=vsc-accountpage-clients-1.1.3",
-    ],
-
-
 }
 
 if __name__ == '__main__':
