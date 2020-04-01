@@ -27,7 +27,7 @@
 Tests for all helper functions in vsc.filesystems.quota.tools.
 
 @author: Andy Georges (Ghent University)
-@author: Ward Poelmans (Free University of Brussels)
+@author: Ward Poelmans (Vrije Universiteit Brussel)
 """
 import os
 import mock

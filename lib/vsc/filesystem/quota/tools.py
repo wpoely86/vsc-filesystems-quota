@@ -27,7 +27,7 @@
 Helper functions for all things quota related.
 
 @author: Andy Georges (Ghent University)
-@author: Ward Poelmans (Free University of Brussels)
+@author: Ward Poelmans (Vrije Universiteit Brussel)
 """
 
 import inspect
