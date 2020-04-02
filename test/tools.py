@@ -1,5 +1,5 @@
 #
-# Copyright 2012-2019 Ghent University
+# Copyright 2012-2020 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,7 +27,7 @@
 Tests for all helper functions in vsc.filesystems.quota.tools.
 
 @author: Andy Georges (Ghent University)
-@author: Ward Poelmans (Free University of Brussels)
+@author: Ward Poelmans (Vrije Universiteit Brussel)
 """
 import os
 import mock
@@ -103,7 +103,8 @@ class TestProcessing(TestCase):
         self.assertEqual(mock_django_pusher.call_count, 2)
 
         mock_django_pusher.assert_has_calls(
-            [mock.call('vsc40075', fileset, quota.quota_map[fileset]) for fileset in ['gvo00002', 'vsc400']]
+            [mock.call('vsc40075', fileset, quota.quota_map[fileset]) for fileset in ['gvo00002', 'vsc400']],
+            any_order=True,
         )
 
     @mock.patch.object(DjangoPusher, 'push_quota')

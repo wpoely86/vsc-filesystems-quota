@@ -1,5 +1,5 @@
 #
-# Copyright 2015-2019 Ghent University
+# Copyright 2015-2020 Ghent University
 #
 # This file is part of vsc-filesystems-quota,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,10 +27,9 @@
 Helper functions for all things quota related.
 
 @author: Andy Georges (Ghent University)
-@author: Ward Poelmans (Free University of Brussels)
+@author: Ward Poelmans (Vrije Universiteit Brussel)
 """
 
-import inspect
 import logging
 import pwd
 import re
@@ -220,26 +219,6 @@ def process_user_quota(storage, gpfs, storage_name, filesystem, quota_map, user_
     return exceeding_users
 
 
-def process_user_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, user_map, client,
-                                      store_cache=False, dry_run=False):
-    """
-    Store the information in the user directories and in the account page.
-
-    Deprecated. Does nothing anymore.
-    """
-    del storage
-    del gpfs
-    del storage_name
-    del filesystem
-    del quota_map
-    del user_map
-    del client
-    del store_cache
-    del dry_run
-    logging.warning("The %s function has been deprecated and should not longer be used.", inspect.stack()[0][3])
-    pass
-
-
 def get_mmrepquota_maps(quota_map, storage, filesystem, filesets,
                         replication_factor=1):
     """Obtain the quota information.
@@ -394,24 +373,6 @@ def process_fileset_quota(storage, gpfs, storage_name, filesystem, quota_map, cl
                 exceeding_filesets.append((fileset_name, quota))
 
     return exceeding_filesets
-
-
-def process_fileset_quota_store_optional(storage, gpfs, storage_name, filesystem, quota_map, client,
-                                         store_cache=False, dry_run=False):
-    """Store the quota information in the filesets.
-
-    Deprecated. Does nothing anymore.
-    """
-    del storage
-    del gpfs
-    del storage_name
-    del filesystem
-    del quota_map
-    del client
-    del store_cache
-    del dry_run
-    logging.warning("The %s function has been deprecated and should not longer be used.", inspect.stack()[0][3])
-    pass
 
 
 def map_uids_to_names():
