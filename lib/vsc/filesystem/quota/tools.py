@@ -30,7 +30,6 @@ Helper functions for all things quota related.
 @author: Ward Poelmans (Vrije Universiteit Brussel)
 """
 
-import inspect
 import logging
 import pwd
 import re
