@@ -35,6 +35,7 @@ import json
 import os
 import time
 
+from vsc.config.base import GENT
 from vsc.filesystem.gpfs import GpfsOperations
 from vsc.utils.script_tools import ExtendedSimpleOption
 
@@ -54,6 +55,7 @@ def main():
     options = {
         'nagios-check-interval-threshold': NAGIOS_CHECK_INTERVAL_THRESHOLD,
         'location': ('path to store the gzipped files', None, 'store', INODE_LOG_ZIP_PATH),
+        'host_institute': ('Name of the institute where this script is being run', str, 'store', GENT),
     }
 
     opts = ExtendedSimpleOption(options)
@@ -95,7 +97,7 @@ def main():
         logger.info("Critical filesets: %s" % (critical_filesets,))
 
         if critical_filesets:
-            mail_admins(critical_filesets, opts.options.dry_run)
+            mail_admins(critical_filesets, dry_run=opts.options.dry_run, host_institute=opts.options.host_institute)
 
     except Exception:
         logger.exception("Failure obtaining GPFS inodes")

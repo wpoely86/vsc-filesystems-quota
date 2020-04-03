@@ -38,7 +38,10 @@ import time
 
 from collections import namedtuple
 
-from vsc.config.base import GENT, STORAGE_SHARED_SUFFIX, VO_PREFIX_BY_SITE, VO_SHARED_PREFIX_BY_SITE, VSC
+from vsc.config.base import (
+    GENT, STORAGE_SHARED_SUFFIX, VO_PREFIX_BY_SITE, VO_SHARED_PREFIX_BY_SITE,
+    VSC, INSTITUTE_SMTP_SERVER, INSTITUTE_ADMIN_EMAIL
+)
 from vsc.filesystem.quota.entities import QuotaUser, QuotaFileset
 from vsc.utils.mail import VscMail
 
@@ -407,9 +410,9 @@ def process_inodes_information(filesets, quota, threshold=0.9):
     return critical_filesets
 
 
-def mail_admins(critical_filesets, dry_run=True):
+def mail_admins(critical_filesets, dry_run=True, host_institute=GENT):
     """Send email to the HPC admin about the inodes running out soonish."""
-    mail = VscMail(mail_host="smtp.ugent.be")
+    mail = VscMail(mail_host=INSTITUTE_SMTP_SERVER[host_institute])
 
     message = CRITICAL_INODE_COUNT_MESSAGE
     fileset_info = []
@@ -428,8 +431,8 @@ def mail_admins(critical_filesets, dry_run=True):
     if dry_run:
         logging.info("Would have sent this message: %s", message)
     else:
-        mail.sendTextMail(mail_to="hpc-admin@lists.ugent.be",
-                          mail_from="hpc-admin@lists.ugent.be",
-                          reply_to="hpc-admin@lists.ugent.be",
+        mail.sendTextMail(mail_to=INSTITUTE_ADMIN_EMAIL[host_institute],
+                          mail_from=INSTITUTE_ADMIN_EMAIL[host_institute],
+                          reply_to=INSTITUTE_ADMIN_EMAIL[host_institute],
                           mail_subject="Inode space(s) running out on %s" % (socket.gethostname()),
                           message=message)
