@@ -13,6 +13,7 @@ dist
 build
 eggs
 .eggs
+.eggs*
 parts
 var
 sdist
