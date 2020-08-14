@@ -29,7 +29,7 @@ PACKAGE = {
     'excluded_pkgs_rpm': ['vsc', 'vsc.filesystem', 'vsc.filesystem.quota'],
     'setup_requires': ['vsc-install >= 0.15.3'],
     'install_requires': [
-        'vsc-accountpage-clients >= 2.0.0',
+        'vsc-accountpage-clients',
         'vsc-base >= 3.0.6',
         'vsc-config >= 3.0.1',
         'vsc-filesystems >= 1.0.1',
