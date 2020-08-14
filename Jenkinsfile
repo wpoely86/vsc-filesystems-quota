@@ -10,7 +10,8 @@ node {
     }
     stage('test') {
         sh 'python2.7 -V'
-        sh 'pip3 install --ignore-installed --user tox'
-        sh 'export PATH=$HOME/.local/bin:$PATH && tox -v -c tox.ini'
+        sh 'pip3 install --ignore-installed --prefix $PWD/.vsc-tox tox'
+        sh 'export PATH=$PWD/.vsc-tox/bin:$PATH && tox -v -c tox.ini'
+        sh 'rm -r $PWD/.vsc-tox'
     }
 }
